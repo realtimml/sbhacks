@@ -1,6 +1,5 @@
 :root {
-  --sidebar-bg: #DFD7C7;
-  --main-content-bg: #3A3A38;
+  --sidebar-bg: #E8DFCA;
   --sidebar-width: 240px;
 }
 
@@ -20,7 +19,7 @@
 
 .main-content {
   flex: 1;
-  background-color: var(--main-content-bg);
+  background-color: #E8DFCA;
   display: flex;
   flex-direction: column;
 }
