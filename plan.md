@@ -1,8 +1,11 @@
 # Orbital: Python + React Architecture Rebuild
 
 > **Important Technical Notes:**
+
 > - SSE streaming uses `fetch` + `ReadableStream` on frontend (NOT `EventSource` which only supports GET)
+
 > - Type safety maintained via `openapi-ts` auto-generation from FastAPI's OpenAPI spec
+
 > - Gemini structured output uses Pydantic models with `response_mime_type="application/json"`
 
 ## Architecture Overview
@@ -18,7 +21,7 @@ flowchart TB
     end
 
     subgraph backend [FastAPI Backend - Port 8000]
-        AuthRouter["/api/auth/{app}"]
+        AuthRouter["/api/auth/app"]
         ChatRouter["/api/chat"]
         ProposalsRouter["/api/proposals"]
         WebhookRouter["/api/webhooks/composio"]
@@ -46,9 +49,9 @@ flowchart TB
     App --> ConnectBtns
     App --> ProposalModal
 
-    ChatUI -->|POST /api/chat| ChatRouter
-    ConnectBtns -->|GET /api/auth/{app}| AuthRouter
-    ProposalModal -->|GET/DELETE /api/proposals| ProposalsRouter
+    ChatUI -->|"POST /api/chat"| ChatRouter
+    ConnectBtns -->|"GET /api/auth/app"| AuthRouter
+    ProposalModal -->|"GET, DELETE"| ProposalsRouter
 
     ChatRouter --> GeminiSvc
     ChatRouter --> ComposioSvc
@@ -177,8 +180,11 @@ Port [app/lib/kv.ts](app/lib/kv.ts) to `backend/app/services/redis_service.py`:
 - `get/set/delete_user_setting()`
 
 > **Persistence Note:** Redis stores proposals ephemerally. If Redis restarts, pending HITL approvals are lost. For production, either:
+
 > - Enable AOF (Append Only File) persistence on Redis
+
 > - Accept that proposals are ephemeral (users can re-trigger)
+
 > - Future: Add SQLite/Postgres for durable proposal storage
 
 ---
