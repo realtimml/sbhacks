@@ -8,7 +8,7 @@ export default function QuickLinks() {
           href="https://notion.so"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center w-12 h-12 bg-[#D5CDBD] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2]"
+          className="flex items-center justify-center w-18 h-18 bg-[#D5CDBD] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2]"
         >
           <svg
             className="w-6 h-6 text-[#393939]"
