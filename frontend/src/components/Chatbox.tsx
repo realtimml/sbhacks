@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BiSend } from 'react-icons/bi';
 
 interface ChatboxProps {
   onSend: (message: string) => void;
@@ -37,19 +38,7 @@ function Chatbox({ onSend }: ChatboxProps) {
           className="ml-2 text-[#393939] hover:opacity-70 transition-opacity"
           aria-label="Send message"
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 2L11 13" />
-            <path d="M22 2L15 22L11 13L2 9L22 2Z" />
-          </svg>
+          <BiSend className="text-[#393939] w-6 h-6" />
         </button>
       </div>
     </div>
