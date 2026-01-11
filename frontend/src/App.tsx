@@ -1,15 +1,17 @@
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
 import Chat from './pages/Chat'
 import Tasks from './pages/Tasks'
-import './App.css'
+import ChatButton from './components/chatButton'
+import TaskButton from './components/taskButton'
 
 function Layout() {
   return (
-    <div className="app-container">
-      <aside className="sidebar">
-        {/* Sidebar content will be implemented later */}
+    <div className="flex min-h-screen w-full">
+      <aside className="w-60 min-w-60 bg-sidebar flex flex-col p-4">
+        <ChatButton />
+        <TaskButton />
       </aside>
-      <main className="main-content">
+      <main className="flex-1 bg-main-bg flex flex-col">
         <Outlet />
       </main>
     </div>
