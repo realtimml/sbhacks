@@ -12,7 +12,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} mb-6`}>
       {/* Sender label */}
-      <span className="text-[#3A3A38] text-base font-medium mb-1 px-1">
+      <span className="text-[#3A3A38] text-base font-medium font-serif-caption mb-1 px-1">
         {isUser ? 'You' : 'Hound'}
       </span>
 

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=PT+Mono&family=PT+Sans+Caption:wght@400;700&family=PT+Sans+Narrow:wght@400;700&family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&family=PT+Serif+Caption:ital@0;1&family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @plugin "@tailwindcss/typography";
 
 
@@ -7,6 +8,7 @@
   --color-main-bg: #DFD7C7;
   --color-content-bg: #E8E4DC;
   --font-serif: 'pt-serif-regular', Georgia, serif;
+  --font-serif-caption: 'pt-serif-caption', Georgia, serif;
 }
 
 @layer base {
