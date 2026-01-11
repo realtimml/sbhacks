@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
 import Chat from './pages/Chat'
 import Tasks from './pages/Tasks'
@@ -7,29 +7,55 @@ import ChatButton from './components/chatbutton'
 import TaskButton from './components/taskbutton'
 import QuickLinks from './components/connections'
 import ConnectionsModal, { SlackIcon, GmailIcon, NotionIcon } from './components/ConnectionsModal'
+import { initiateOAuth, getConnections, checkOAuthPending } from './lib/api'
 
 function Layout() {
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Connection states - in a real app this would come from API/context
+  // Connection states - updated from API
   const [connections, setConnections] = useState([
     { id: 'slack', name: 'Slack', icon: <SlackIcon />, connected: false },
-    { id: 'gmail', name: 'Gmail', icon: <GmailIcon />, connected: true },
+    { id: 'gmail', name: 'Gmail', icon: <GmailIcon />, connected: false },
     { id: 'notion', name: 'Notion', icon: <NotionIcon />, connected: false },
   ]);
 
+  // Fetch connections from backend
+  const fetchConnections = async () => {
+    try {
+      const connectedApps = await getConnections();
+      setConnections(prev => 
+        prev.map(c => ({
+          ...c,
+          connected: connectedApps.includes(c.id.toUpperCase()) || connectedApps.includes(c.id)
+        }))
+      );
+    } catch (error) {
+      console.error('Failed to fetch connections:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // On mount: check for OAuth return and fetch connections
+  useEffect(() => {
+    const pendingOAuth = checkOAuthPending();
+    if (pendingOAuth) {
+      console.log(`OAuth completed for: ${pendingOAuth}`);
+    }
+    fetchConnections();
+  }, []);
+
   const connectedCount = connections.filter(c => c.connected).length;
 
-  const handleConnect = (connectionId: string) => {
-    // In a real app, this would trigger OAuth flow
-    // For now, just toggle the connection state
-    setConnections(prev => 
-      prev.map(c => 
-        c.id === connectionId ? { ...c, connected: !c.connected } : c
-      )
-    );
-    console.log(`Connecting to ${connectionId}...`);
-    // TODO: Redirect to OAuth: window.location.href = `/api/auth/${connectionId}/start?entityId=...`
+  const handleConnect = async (connectionId: string) => {
+    try {
+      console.log(`Initiating OAuth for ${connectionId}...`);
+      await initiateOAuth(connectionId);
+      // User will be redirected to OAuth provider
+    } catch (error) {
+      console.error(`Failed to initiate OAuth for ${connectionId}:`, error);
+    }
   };
 
   return (
@@ -44,7 +70,7 @@ function Layout() {
         <div className="w-full h-px bg-[#C5BDAD] my-3" />
         {/* Spacer to push QuickLinks to bottom */}
         <div className="flex-1" />
-        <QuickLinks connections={connections} />
+        <QuickLinks connections={connections} onConnect={handleConnect} />
       </aside>
 
       {/* Connections Modal */}
@@ -59,7 +85,8 @@ function Layout() {
           <Outlet context={{ 
             connectedCount, 
             totalCount: connections.length, 
-            openConnectionsModal: () => setIsConnectionsOpen(true) 
+            openConnectionsModal: () => setIsConnectionsOpen(true),
+            isLoading
           }} />
         </div>
       </main>
