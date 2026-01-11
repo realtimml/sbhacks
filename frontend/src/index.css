@@ -1,7 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --color-main-bg: #DFD7C7;
+  --color-sidebar: #DFD7C7;
+  --color-main-bg: #3A3A38;
+  --color-content-bg: #E8E4DC;
   --font-serif: 'PT Serif', Georgia, serif;
 }
 
