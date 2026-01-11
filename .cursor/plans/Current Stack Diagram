@@ -1,0 +1,339 @@
+---
+name: Orbital Architecture Diagram
+overview: A visual breakdown of the Orbital application architecture - an AI-powered productivity assistant with Gmail, Slack, Calendar, and Notion integrations.
+todos: []
+---
+
+# Orbital Application Architecture
+
+## High-Level Stack Diagram
+
+```mermaid
+flowchart TB
+    subgraph frontend [Frontend - React/Next.js Client]
+        Page[page.tsx<br/>Main Entry]
+        ChatInterface[ChatInterface.tsx<br/>AI Chat UI]
+        ConnectButton[ConnectButton.tsx<br/>OAuth Buttons]
+        ProposalNotification[ProposalNotification.tsx<br/>Task Badge/Modal]
+        MessageBubble[MessageBubble.tsx]
+        HITLCard[HITLCard.tsx<br/>Confirmation Cards]
+        ToolStatusBadge[ToolStatusBadge.tsx]
+    end
+
+    subgraph hooks [Custom Hooks]
+        useEntityId[useEntityId<br/>User Identity]
+        useProposals[useProposals<br/>Fetch Tasks]
+        usePendingProposals[usePendingProposals<br/>Local State]
+    end
+
+    subgraph api [Next.js API Routes]
+        ChatAPI["/api/chat"<br/>POST - AI Chat]
+        ProposalsAPI["/api/proposals"<br/>GET/DELETE]
+        AuthAPI["/api/auth/app"<br/>OAuth Flow]
+        WebhookAPI["/api/webhooks/composio"<br/>Incoming Events]
+        TriggersAPI["/api/triggers"<br/>Manage Webhooks]
+    end
+
+    subgraph actions [Server Actions]
+        ExecuteEvent[executeConfirmedEvent]
+        ExecuteNotion[executeNotionTask]
+        GetConnected[getConnectedApps]
+    end
+
+    subgraph lib [Core Libraries]
+        TaskInference[taskInference.ts<br/>2-Stage AI Detection]
+        KV[kv.ts<br/>Redis Operations]
+        Composio[composio.ts<br/>Composio Client]
+        Types[types.ts<br/>TypeScript Defs]
+    end
+
+    subgraph external [External Services]
+        Gemini[Google Gemini AI<br/>2.5 Flash / Flash Lite]
+        ComposioSvc[Composio Platform<br/>OAuth + Tools]
+        Redis[(Upstash Redis<br/>Proposals/Settings)]
+    end
+
+    subgraph integrations [Connected Apps]
+        Gmail[Gmail]
+        Slack[Slack]
+        Calendar[Google Calendar]
+        Notion[Notion]
+    end
+
+    Page --> ChatInterface
+    Page --> ConnectButton
+    Page --> ProposalNotification
+    ChatInterface --> MessageBubble
+    ChatInterface --> HITLCard
+    ChatInterface --> ToolStatusBadge
+
+    Page --> useEntityId
+    ProposalNotification --> useProposals
+    ChatInterface --> usePendingProposals
+
+    ChatInterface -->|POST| ChatAPI
+    ConnectButton -->|GET| AuthAPI
+    ProposalNotification -->|GET/DELETE| ProposalsAPI
+    HITLCard --> ExecuteEvent
+
+    ChatAPI --> Gemini
+    ChatAPI --> ComposioSvc
+    WebhookAPI --> TaskInference
+    TaskInference --> Gemini
+    WebhookAPI --> KV
+    ProposalsAPI --> KV
+
+    ExecuteEvent --> ComposioSvc
+    ExecuteNotion --> ComposioSvc
+    KV --> Redis
+
+    ComposioSvc --> Gmail
+    ComposioSvc --> Slack
+    ComposioSvc --> Calendar
+    ComposioSvc --> Notion
+
+    Gmail -.->|Webhook| WebhookAPI
+    Slack -.->|Webhook| WebhookAPI
+```
+
+---
+
+## Component Breakdown by Layer
+
+### 1. Frontend Layer (React Components)
+
+| Component | File | Purpose |
+
+|-----------|------|---------|
+
+| Main Page | [`app/page.tsx`](app/page.tsx) | Entry point, manages entity ID, renders header with connect buttons and chat |
+
+| Chat Interface | [`app/components/ChatInterface.tsx`](app/components/ChatInterface.tsx) | Interactive AI chat using Vercel AI SDK's `useChat` hook with streaming |
+
+| Connect Button | [`app/components/ConnectButton.tsx`](app/components/ConnectButton.tsx) | OAuth connection buttons for Gmail, Slack, Notion |
+
+| Proposal Notification | [`app/components/ProposalNotification.tsx`](app/components/ProposalNotification.tsx) | Bell icon with badge count + modal for task proposals |
+
+| HITL Card | [`app/components/HITLCard.tsx`](app/components/HITLCard.tsx) | Human-in-the-loop confirmation cards for calendar events |
+
+| Message Bubble | [`app/components/MessageBubble.tsx`](app/components/MessageBubble.tsx) | Styled chat message display |
+
+| Tool Status Badge | [`app/components/ToolStatusBadge.tsx`](app/components/ToolStatusBadge.tsx) | Shows tool execution status during streaming |
+
+### 2. API Routes Layer
+
+| Route | Method | Purpose |
+
+|-------|--------|---------|
+
+| `/api/chat` | POST | Main AI chat endpoint with function calling via Gemini 2.5 Flash |
+
+| `/api/proposals` | GET | Fetch pending task proposals from Redis |
+
+| `/api/proposals` | DELETE | Remove proposal after approval/rejection |
+
+| `/api/auth/[app]` | GET | Initiate Composio OAuth flow |
+
+| `/api/webhooks/composio` | POST | Receive incoming message webhooks from Gmail/Slack |
+
+| `/api/triggers` | POST/DELETE | Enable/disable Composio webhook triggers |
+
+### 3. Server Actions ([`app/actions.ts`](app/actions.ts))
+
+| Action | Purpose |
+
+|--------|---------|
+
+| `executeConfirmedEvent` | Create Google Calendar event after HITL approval |
+
+| `executeNotionTask` | Create Notion page/task after approval |
+
+| `getConnectedApps` | Check which apps are connected for entity |
+
+### 4. Core Libraries ([`app/lib/`](app/lib/))
+
+| File | Purpose |
+
+|------|---------|
+
+| [`taskInference.ts`](app/lib/taskInference.ts) | Two-stage AI task detection (classify then extract) |
+
+| [`kv.ts`](app/lib/kv.ts) | Upstash Redis operations for proposals, dedup, rate limiting |
+
+| [`types.ts`](app/lib/types.ts) | TypeScript interfaces for proposals, messages, tools |
+
+---
+
+## Data Flow Diagrams
+
+### Flow 1: Interactive Chat with Function Calling
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ChatUI as ChatInterface
+    participant ChatAPI as /api/chat
+    participant Gemini as Gemini 2.5 Flash
+    participant Composio as Composio ToolSet
+    participant Gmail
+    participant Slack
+
+    User->>ChatUI: Type "Find emails from John"
+    ChatUI->>ChatAPI: POST messages + x-entity-id
+    
+    ChatAPI->>Composio: getTools for entity
+    Composio-->>ChatAPI: Available read-only tools
+    
+    ChatAPI->>Gemini: streamText with tools
+    
+    Note over Gemini: AI decides to search both
+    
+    par Parallel Tool Calls
+        Gemini->>ChatAPI: GMAIL_FETCH_EMAILS
+        Gemini->>ChatAPI: SLACK_SEARCH_MESSAGES
+    end
+    
+    ChatAPI->>Composio: Execute tools
+    Composio->>Gmail: Search API
+    Composio->>Slack: Search API
+    
+    Gmail-->>Composio: Results
+    Slack-->>Composio: Results
+    Composio-->>ChatAPI: Tool results
+    
+    ChatAPI->>Gemini: Results context
+    Gemini-->>ChatAPI: Summarized response
+    ChatAPI-->>ChatUI: Stream response
+    ChatUI-->>User: Display results
+```
+
+### Flow 2: Passive Task Detection (Webhooks)
+
+```mermaid
+sequenceDiagram
+    participant Slack
+    participant Composio as Composio Triggers
+    participant Webhook as /api/webhooks/composio
+    participant KV as Redis KV
+    participant AI as Task Inference
+    participant UI as Notification Badge
+
+    Slack->>Composio: New DM received
+    Composio->>Webhook: POST webhook payload
+    
+    Webhook->>Webhook: Verify HMAC signature
+    Webhook->>Webhook: Pre-filter check
+    Webhook->>KV: Check rate limit
+    KV-->>Webhook: Allowed
+    Webhook->>KV: Check dedup hash
+    KV-->>Webhook: Not seen before
+    
+    Webhook->>AI: classifyMessage
+    AI->>AI: Stage 1 - Quick classify
+    Note over AI: Returns "task" or "chat"
+    
+    AI->>AI: Stage 2 - extractTaskDetails
+    Note over AI: Structured output with Zod schema
+    
+    AI-->>Webhook: TaskProposal object
+    
+    Webhook->>KV: addProposal to Redis list
+    
+    Note over UI: Polling detects new count
+    UI->>UI: Show badge with count
+```
+
+### Flow 3: Human-in-the-Loop Confirmation
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Modal as Proposal Modal
+    participant API as /api/proposals
+    participant Actions as Server Actions
+    participant Composio
+    participant Notion
+    participant Redis
+
+    User->>Modal: Click notification badge
+    Modal->>API: GET proposals
+    API->>Redis: lrange proposals:entityId
+    Redis-->>API: List of TaskProposals
+    API-->>Modal: Display proposals
+
+    User->>Modal: Click "Approve" on task
+    Modal->>Actions: executeNotionTask
+    
+    Actions->>Actions: Get/find Notion database ID
+    Actions->>Composio: NOTION_CREATE_NOTION_PAGE
+    Composio->>Notion: Create page
+    Notion-->>Composio: Page created
+    Composio-->>Actions: Success with page ID
+    
+    Actions->>API: DELETE proposal
+    API->>Redis: lrem proposals:entityId
+    
+    Actions-->>Modal: Show success toast
+    Modal->>Modal: Remove card from list
+```
+
+---
+
+## Redis Storage Schema
+
+| Key Pattern | Type | TTL | Purpose |
+
+|-------------|------|-----|---------|
+
+| `proposals:{entityId}` | List | 7 days | Pending task proposals awaiting approval |
+
+| `seen:{messageHash}` | String | 1 hour | Message deduplication to prevent duplicates |
+
+| `settings:{entityId}:{key}` | String | None | User settings like Notion database ID |
+
+| `ratelimit:{entityId}` | Counter | 60 sec | Rate limiting at 10 requests/minute |
+
+---
+
+## AI Model Usage
+
+| Model | Location | Purpose |
+
+|-------|----------|---------|
+
+| `gemini-2.5-flash-lite` | `/api/chat` | Interactive chat with function calling |
+
+| `gemini-2.5-flash-lite` | `taskInference.ts` | Stage 1: Quick message classification |
+
+| `gemini-2.5-flash-lite` | `taskInference.ts` | Stage 2: Structured task extraction |
+
+---
+
+## Security Features
+
+1. **Webhook Signature Verification** - HMAC-SHA256 validation on incoming Composio webhooks
+2. **Rate Limiting** - 10 requests/minute per entity using Redis counter
+3. **Message Deduplication** - Hash-based duplicate detection with 1-hour TTL
+4. **Entity Isolation** - All data scoped by entity ID
+5. **Human-in-the-Loop** - Write operations (calendar, Notion) require explicit user confirmation
+6. **Read-Only Tool Filtering** - Chat API filters out CREATE/UPDATE/DELETE/SEND actions
+
+---
+
+## Technology Stack Summary
+
+| Layer | Technology |
+
+|-------|------------|
+
+| Frontend | Next.js 14, React, Framer Motion, Tailwind CSS |
+
+| Backend | Next.js API Routes (Node.js runtime) |
+
+| AI | Vercel AI SDK, Google Gemini API |
+
+| Integrations | Composio (OAuth + tool execution) |
+
+| Storage | Upstash Redis (REST API) |
+
+| Deployment | Vercel (recommended)

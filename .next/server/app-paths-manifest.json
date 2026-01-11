@@ -1,0 +1,5 @@
+{
+  "/api/proposals/route": "app/api/proposals/route.js",
+  "/api/webhooks/composio/route": "app/api/webhooks/composio/route.js",
+  "/page": "app/page.js"
+}
