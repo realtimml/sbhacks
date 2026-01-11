@@ -1,6 +1,6 @@
 export default function ChatButton() {
   return (
-    <button className="flex items-center gap-3 w-full h-[35px] px-4 bg-[#D5CDBD] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2] active:bg-[#C5BDAD]">
+    <button className="flex items-center gap-3 w-full h-[35px] px-2 bg-[#D5CDBD] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2] active:bg-[#C5BDAD]">
       <svg
         className="w-6 h-6 text-[#393939] shrink-0"
         viewBox="0 0 24 24"
