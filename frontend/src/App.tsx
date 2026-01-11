@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
 import Chat from './pages/Chat'
 import Tasks from './pages/Tasks'
+import Logo from './components/logo'
 import ChatButton from './components/chatbutton'
 import TaskButton from './components/taskbutton'
 
@@ -8,8 +9,12 @@ function Layout() {
   return (
     <div className="flex min-h-screen w-full">
       <aside className="w-60 min-w-60 bg-sidebar flex flex-col p-4">
-        <ChatButton />
-        <TaskButton />
+        <Logo />
+        <div className="w-full h-px bg-[#C5BDAD] my-3" />
+        <div className="flex flex-col gap-1">
+          <ChatButton />
+          <TaskButton />
+        </div>
       </aside>
       <main className="flex-1 bg-main-bg flex flex-col">
         <Outlet />
