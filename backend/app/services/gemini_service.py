@@ -39,7 +39,7 @@ class GeminiService:
     and structured output generation for task inference.
     """
     
-    def __init__(self, model_name: str = "gemini-2.0-flash"):
+    def __init__(self, model_name: str = "gemini-2.0-flash-lite"):
         """
         Initialize the Gemini service.
         
@@ -269,7 +269,9 @@ class GeminiService:
         response = model.generate_content(
             prompt,
             generation_config=GenerationConfig(
-                response_mime_type="application/json",
+                response_mime_type="application/json", 
+                # for our purposes, application/json will be fine
+                # but if issues arise or for different use cases, use form data
                 response_schema=response_schema,
             ),
         )
