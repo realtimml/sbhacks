@@ -16,8 +16,10 @@ function Layout() {
           <TaskButton />
         </div>
       </aside>
-      <main className="flex-1 bg-main-bg flex flex-col">
-        <Outlet />
+      <main className="flex-1 bg-main-bg flex flex-col px-10 py-8">
+        <div className="flex-1 bg-[#F5EFE6] rounded-2xl flex flex-col overflow-hidden">
+          <Outlet />
+        </div>
       </main>
     </div>
   )
