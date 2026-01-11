@@ -1,5 +1,6 @@
 import type { Message } from '../lib/types';
 import ToolStatusBadge from './ToolStatusBadge';
+import ReactMarkdown from 'react-markdown';
 
 interface MessageBubbleProps {
   message: Message;
@@ -36,9 +37,15 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-[#D5CDBD] text-[#3A3A38]'
         }`}
       >
-        <p className="text-base leading-relaxed whitespace-pre-wrap">
-          {message.content}
-        </p>
+        {isUser ? (
+          <p className="text-base leading-relaxed whitespace-pre-wrap">
+            {message.content}
+          </p>
+        ) : (
+          <div className="text-base leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-pre:bg-[#3A3A38]/10 prose-pre:rounded-lg prose-code:bg-[#3A3A38]/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-[#5a4a3a] prose-a:underline prose-strong:text-[#3A3A38]">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );
