@@ -1,3 +1,5 @@
+import type { ChatChunk } from './types';
+
 // Empty string = relative URLs go through Vite proxy
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -62,4 +64,70 @@ export function checkOAuthPending(): string | null {
     sessionStorage.removeItem('oauth_pending');
   }
   return pending;
+}
+
+/**
+ * Stream chat messages to the backend and receive SSE response chunks.
+ * Uses fetch + ReadableStream (NOT EventSource, which only supports GET).
+ * 
+ * @param messages - Array of chat messages to send
+ * @param onChunk - Callback invoked for each parsed SSE chunk
+ */
+export async function streamChat(
+  messages: { role: string; content: string }[],
+  onChunk: (chunk: ChatChunk) => void
+): Promise<void> {
+  const entityId = getUserId();
+  
+  const response = await fetch(`${API_URL}/api/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-entity-id': entityId,
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Chat request failed: ${error}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Response body is null');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    // Decode the chunk and add to buffer
+    buffer += decoder.decode(value, { stream: true });
+
+    // Parse SSE format: "data: {...}\n\n"
+    const lines = buffer.split('\n\n');
+    buffer = lines.pop() || ''; // Keep incomplete chunk in buffer
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6); // Remove "data: " prefix
+        
+        // Handle end signal
+        if (data === '[DONE]') {
+          return;
+        }
+        
+        try {
+          const chunk = JSON.parse(data) as ChatChunk;
+          onChunk(chunk);
+        } catch (e) {
+          console.error('Failed to parse SSE chunk:', data, e);
+        }
+      }
+    }
+  }
 }
