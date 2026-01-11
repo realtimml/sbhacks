@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
 import Chat from './pages/Chat'
 import Tasks from './pages/Tasks'
-import ChatButton from './components/chatButton'
-import TaskButton from './components/taskButton'
+import ChatButton from './components/chatbutton'
+import TaskButton from './components/taskbutton'
 
 function Layout() {
   return (
