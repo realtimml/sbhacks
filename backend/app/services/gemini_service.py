@@ -39,13 +39,13 @@ class GeminiService:
     and structured output generation for task inference.
     """
     
-    def __init__(self, model_name: str = "gemini-2.0-flash-lite"):
+    def __init__(self, model_name: str = "gemini-2.5-flash-lite"):
         """
         Initialize the Gemini service.
         
         Args:
-            model_name: The Gemini model to use. Default is gemini-2.0-flash
-                       which has good function calling support.
+            model_name: The Gemini model to use. Default is gemini-2.5-flash-lite
+                       for cost-efficient task inference and chat.
         
         Note: The actual GenerativeModel is instantiated per-request in 
         stream_chat() to allow dynamic system_instruction injection.
@@ -242,13 +242,44 @@ class GeminiService:
         yield {"type": "done"}
         logger.info("[GeminiService] stream_chat completed")
     
+    async def generate_text(
+        self,
+        prompt: str,
+        max_tokens: int = 50,
+    ) -> str:
+        """
+        Simple async text generation for classification tasks.
+        
+        Used by task_inference.py Stage 1 for quick chat/task classification.
+        Optimized for fast, cheap responses with minimal token output.
+        
+        Args:
+            prompt: The prompt to send to Gemini
+            max_tokens: Maximum tokens in response (default 50 for classification)
+            
+        Returns:
+            Raw text response from Gemini
+        """
+        logger.info(f"[GeminiService] generate_text called with max_tokens={max_tokens}")
+        
+        model = genai.GenerativeModel(model_name=self.model_name)
+        
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=GenerationConfig(max_output_tokens=max_tokens),
+        )
+        
+        result = response.text or ""
+        logger.info(f"[GeminiService] generate_text response: {result[:100]}")
+        return result
+    
     def generate_structured(
         self,
         prompt: str,
         response_schema: type[BaseModel],
     ) -> BaseModel:
         """
-        Generate structured JSON output matching a Pydantic schema.
+        Generate structured JSON output matching a Pydantic schema (sync version).
         
         Used by task_inference.py for extracting structured task details
         from messages (e.g., calendar events, reminders).
@@ -280,6 +311,47 @@ class GeminiService:
         result = response_schema.model_validate_json(response.text)
         
         logger.info(f"[GeminiService] Structured output generated successfully")
+        return result
+    
+    async def generate_structured_async(
+        self,
+        prompt: str,
+        response_schema: type[BaseModel],
+        system_prompt: str | None = None,
+    ) -> BaseModel:
+        """
+        Generate structured JSON output matching a Pydantic schema (async version).
+        
+        Used by task_inference.py Stage 2 for extracting structured task details
+        from messages with full context.
+        
+        Args:
+            prompt: The user prompt to send to Gemini
+            response_schema: Pydantic model class defining expected structure
+            system_prompt: Optional system instructions for context
+            
+        Returns:
+            Instance of response_schema populated with Gemini's response
+        """
+        logger.info(f"[GeminiService] generate_structured_async called with schema: {response_schema.__name__}")
+        
+        model = genai.GenerativeModel(
+            model_name=self.model_name,
+            system_instruction=system_prompt,
+        )
+        
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=response_schema,
+            ),
+        )
+        
+        # Parse JSON response into Pydantic model
+        result = response_schema.model_validate_json(response.text)
+        
+        logger.info(f"[GeminiService] Structured async output generated successfully")
         return result
     
     def _convert_messages(self, messages: list[dict]) -> list[Content]:
