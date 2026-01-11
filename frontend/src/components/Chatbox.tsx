@@ -23,18 +23,18 @@ function Chatbox({ onSend }: ChatboxProps) {
 
   return (
     <div className="w-full px-6 pb-6">
-      <div className="flex items-center border-3 border-[#3A3A38] rounded-2xl px-4 py-3">
+      <div className="flex items-center border-3 border-[#393939] rounded-2xl px-4 py-3">
         <input
           type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder=""
-          className="flex-1 bg-transparent outline-none text-[#3A3A38]"
+          className="flex-1 bg-transparent outline-none text-[#393939]"
         />
         <button
           onClick={handleSend}
-          className="ml-2 text-[#3A3A38] hover:opacity-70 transition-opacity"
+          className="ml-2 text-[#393939] hover:opacity-70 transition-opacity"
           aria-label="Send message"
         >
           <svg
