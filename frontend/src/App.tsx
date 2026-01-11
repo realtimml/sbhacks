@@ -5,8 +5,12 @@ import Logo from './components/logo'
 import ChatButton from './components/chatbutton'
 import TaskButton from './components/taskbutton'
 import QuickLinks from './components/quicklinks'
+import ConnectionStatus from './components/connectionstatus'
 
 function Layout() {
+  // This would come from your app state/context in a real app
+  const connectedCount = 3;
+
   return (
     <div className="flex min-h-screen w-full">
       <aside className="w-60 min-w-60 bg-sidebar flex flex-col p-4">
@@ -18,6 +22,9 @@ function Layout() {
         </div>
         <div className="w-full h-px bg-[#C5BDAD] my-3" />
         <QuickLinks />
+        {/* Spacer to push connection status to bottom */}
+        <div className="flex-1" />
+        <ConnectionStatus connectedCount={connectedCount} />
       </aside>
       <main className="flex-1 bg-main-bg flex flex-col px-10 py-8">
         <div className="flex-1 bg-[#F5EFE6] rounded-2xl flex flex-col overflow-hidden">
