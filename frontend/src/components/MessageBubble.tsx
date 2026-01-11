@@ -31,7 +31,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
       {/* Message bubble */}
       <div
-        className={`max-w-[80%] px-3 py-2 rounded-2xl ${
+        className={`max-w-[90%] px-5 py-5 rounded-2xl ${
           isUser
             ? 'bg-[#C5BDAD] text-[#3A3A38]'
             : 'bg-[#D5CDBD] text-[#3A3A38]'

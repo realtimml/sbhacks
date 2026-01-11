@@ -6,7 +6,6 @@ import Logo from './components/logo'
 import ChatButton from './components/chatbutton'
 import TaskButton from './components/taskbutton'
 import QuickLinks from './components/quicklinks'
-import ConnectionStatus from './components/connectionstatus'
 import ConnectionsModal, { SlackIcon, GmailIcon, NotionIcon } from './components/ConnectionsModal'
 
 function Layout() {
@@ -43,14 +42,9 @@ function Layout() {
           <TaskButton />
         </div>
         <div className="w-full h-px bg-[#C5BDAD] my-3" />
-        <QuickLinks />
-        {/* Spacer to push connection status to bottom */}
+        {/* Spacer to push QuickLinks to bottom */}
         <div className="flex-1" />
-        <ConnectionStatus 
-          connectedCount={connectedCount} 
-          totalCount={connections.length}
-          onClick={() => setIsConnectionsOpen(true)}
-        />
+        <QuickLinks connections={connections} />
       </aside>
 
       {/* Connections Modal */}
@@ -60,9 +54,13 @@ function Layout() {
         connections={connections}
         onConnect={handleConnect}
       />
-      <main className="flex-1 min-h-0 bg-main-bg flex flex-col pl-3 pr-6 py-8">
-        <div className="flex-1 min-h-0 bg-[#F5EFE6] rounded-2xl flex flex-col overflow-hidden">
-          <Outlet />
+      <main className="flex-1 bg-main-bg flex min-h-0 flex-col pl-3 pr-6 py-8">
+        <div className="flex-1 bg-[#F5EFE6] rounded-2xl min-h-0 flex flex-col overflow-hidden">
+          <Outlet context={{ 
+            connectedCount, 
+            totalCount: connections.length, 
+            openConnectionsModal: () => setIsConnectionsOpen(true) 
+          }} />
         </div>
       </main>
     </div>

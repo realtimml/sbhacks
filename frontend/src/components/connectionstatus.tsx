@@ -14,18 +14,18 @@ export default function ConnectionStatus({
   return (
     <button 
       onClick={onClick}
-      className="flex items-center justify-between w-full h-10 px-4 bg-[#D5CDBD] rounded-full cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2] mb-4"
+      className="flex items-center gap-2 h-6 px-4 bg-transparent cursor-pointer transition-all duration-200 hover:opacity-70"
     >
+      {/* Status indicator dot */}
+      <div 
+        className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+          isFullyConnected ? 'bg-green-500' : 'bg-red-500'
+        }`}
+      />
       {/* Connection text */}
       <span className="text-[#393939] text-sm font-regular">
         {connectedCount} Connection{connectedCount !== 1 ? 's' : ''}
       </span>
-      {/* Status indicator dot */}
-      <div 
-        className={`w-3 h-3 rounded-full shrink-0 ${
-          isFullyConnected ? 'bg-[#8EB879]' : 'bg-[#e57758]'
-        }`}
-      />
     </button>
   )
 }
