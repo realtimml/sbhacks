@@ -7,7 +7,7 @@ import TaskButton from './components/taskbutton'
 function Layout() {
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="w-60 min-w-60 bg-sidebar flex flex-col p-4">
+      <aside className="w-60 min-w-60 bg-main-bg flex flex-col p-4">
         <ChatButton />
         <TaskButton />
       </aside>
