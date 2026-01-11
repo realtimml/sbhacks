@@ -1,90 +1,152 @@
 import { useState, useEffect } from 'react'
-import { RiGoogleFill, RiNotionFill, RiSlackLine, RiErrorWarningLine, RiLoader4Line } from 'react-icons/ri'
+import { useOutletContext } from 'react-router-dom'
+import { RiNotionFill, RiSlackLine, RiLoader4Line, RiAlertLine, RiArrowUpLine, RiArrowDownLine } from 'react-icons/ri'
+import { BiLogoGmail } from 'react-icons/bi'
 import TaskItem from '../components/TaskItem'
-import ProposalCard from '../components/ProposalCard'
 import { useProposals } from '../hooks/useProposals'
-import { getNotionSettings } from '../lib/api'
+import { getNotionSettings, executeProposal, dismissProposal } from '../lib/api'
+import type { TaskProposal } from '../lib/types'
 
-interface Task {
-  id: string
-  title: string
-  dueDate: string
-  confidence: number
-  sources: { name: string; icon?: React.ReactNode; type: 'primary' | 'priority' }[]
-  description: string
-  actionLabel: string
-  actionIcon?: React.ReactNode
-  detectionReason: string
+interface LayoutContext {
+  connectedCount: number;
+  totalCount: number;
+  openConnectionsModal: () => void;
+  isLoading: boolean;
 }
 
-const sampleTasks: Task[] = [
-  {
-    id: '1',
-    title: 'Apply to Diamondhacks 2026',
-    dueDate: 'April 4, 2026',
-    confidence: 96,
-    sources: [
-      { name: 'Gmail', icon: <RiGoogleFill className="w-4 h-4" />, type: 'primary' },
-      { name: 'Medium', icon: <RiErrorWarningLine className="w-4 h-4" />, type: 'priority' },
-    ],
-    description: "The application for DiamondHacks 2026 is open. The recipient's application will receive priority consideration...",
-    actionLabel: 'Add to Notion',
-    actionIcon: <RiNotionFill className="w-5 h-5" />,
-    detectionReason: 'The email explicitly states that applications are live and provides a link to apply, implying an action is needed.',
-  },
-  {
-    id: '2',
-    title: 'Submit quarterly report',
-    dueDate: 'March 15, 2026',
-    confidence: 89,
-    sources: [
-      { name: 'Slack', icon: <RiSlackLine className="w-4 h-4" />, type: 'primary' },
-    ],
-    description: "Reminder from your manager: Please submit the Q1 quarterly report by end of week. Include metrics and KPIs.",
-    actionLabel: 'Add to Notion',
-    actionIcon: <RiNotionFill className="w-5 h-5" />,
-    detectionReason: 'Message from manager mentions a deadline and specific deliverable that requires action.',
-  },
-  {
-    id: '3',
-    title: 'Schedule dentist appointment',
-    dueDate: 'March 20, 2026',
-    confidence: 72,
-    sources: [
-      { name: 'Gmail', icon: <RiGoogleFill className="w-4 h-4" />, type: 'primary' },
-    ],
-    description: "Your 6-month dental checkup is due. Please call to schedule your appointment at your earliest convenience.",
-    actionLabel: 'Add to Notion',
-    actionIcon: <RiNotionFill className="w-5 h-5" />,
-    detectionReason: 'Email from dental office suggests scheduling an appointment, indicating a personal task.',
-  },
-]
+// Priority badge colors and icons
+const priorityConfig = {
+  high: { label: 'High', icon: <RiArrowUpLine className="w-4 h-4" />, color: 'bg-red-100 text-red-700' },
+  medium: { label: 'Medium', icon: <RiAlertLine className="w-4 h-4" />, color: 'bg-amber-100 text-amber-700' },
+  low: { label: 'Low', icon: <RiArrowDownLine className="w-4 h-4" />, color: 'bg-blue-100 text-blue-700' },
+}
+
+// Source icons
+const sourceIcons = {
+  slack: <RiSlackLine className="w-4 h-4" />,
+  gmail: <BiLogoGmail className="w-4 h-4" />,
+}
+
+// Format date for display
+function formatDueDate(dateStr?: string): string {
+  if (!dateStr) return 'No due date'
+  try {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
+
+// Convert proposal to TaskItem sources array
+function buildSources(proposal: TaskProposal) {
+  const sources: { name: string; icon?: React.ReactNode; type: 'primary' | 'priority' }[] = []
+  
+  // Add source (Slack/Gmail)
+  const sourceName = proposal.source.charAt(0).toUpperCase() + proposal.source.slice(1)
+  sources.push({
+    name: sourceName,
+    icon: sourceIcons[proposal.source],
+    type: 'primary',
+  })
+  
+  // Add priority badge
+  const priority = priorityConfig[proposal.priority]
+  sources.push({
+    name: priority.label,
+    icon: priority.icon,
+    type: 'priority',
+  })
+  
+  return sources
+}
 
 function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>(sampleTasks)
+  const { openConnectionsModal } = useOutletContext<LayoutContext>()
   const [hasNotionDatabase, setHasNotionDatabase] = useState(false)
+  const [executingIds, setExecutingIds] = useState<Set<string>>(new Set())
+  const [successIds, setSuccessIds] = useState<Set<string>>(new Set())
   const { proposals, isLoading: proposalsLoading, removeProposal } = useProposals()
 
   // Check if user has selected a Notion database
-  useEffect(() => {
-    const checkNotionSettings = async () => {
-      try {
-        const settings = await getNotionSettings()
-        setHasNotionDatabase(!!settings?.database_id)
-      } catch (err) {
-        console.error('Failed to check Notion settings:', err)
-      }
+  const checkNotionSettings = async () => {
+    try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Tasks.tsx:65',message:'checkNotionSettings called',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      const settings = await getNotionSettings()
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Tasks.tsx:68',message:'getNotionSettings returned',data:{settings:settings,hasDbId:!!settings?.database_id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      setHasNotionDatabase(!!settings?.database_id)
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Tasks.tsx:72',message:'checkNotionSettings error',data:{error:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      console.error('Failed to check Notion settings:', err)
     }
+  }
+
+  // Check on mount
+  useEffect(() => {
     checkNotionSettings()
   }, [])
 
-  const handleDismiss = (id: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== id))
+  // Re-check when window regains focus (after modal closes)
+  useEffect(() => {
+    const handleFocus = () => {
+      checkNotionSettings()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
+
+  // Handle dismissing a proposal
+  const handleDismiss = async (proposalId: string) => {
+    try {
+      await dismissProposal(proposalId)
+      removeProposal(proposalId)
+    } catch (err) {
+      console.error('Failed to dismiss proposal:', err)
+    }
   }
 
-  const handleAction = (taskId: string) => {
-    // TODO: Implement action (e.g., add to Notion)
-    console.log('Action triggered for task:', taskId)
+  // Handle adding proposal to Notion
+  const handleAddToNotion = async (proposalId: string) => {
+    if (!hasNotionDatabase) {
+      alert('Please select a Notion database first in the Connections settings.')
+      return
+    }
+
+    setExecutingIds(prev => new Set(prev).add(proposalId))
+    
+    try {
+      const result = await executeProposal(proposalId)
+      
+      if (result.success) {
+        setSuccessIds(prev => new Set(prev).add(proposalId))
+        // Remove from list after showing success briefly
+        setTimeout(() => {
+          removeProposal(proposalId)
+          setSuccessIds(prev => {
+            const next = new Set(prev)
+            next.delete(proposalId)
+            return next
+          })
+        }, 1500)
+      } else {
+        alert(result.error || 'Failed to add task to Notion')
+      }
+    } catch (err) {
+      console.error('Failed to execute proposal:', err)
+      alert('Failed to add task to Notion')
+    } finally {
+      setExecutingIds(prev => {
+        const next = new Set(prev)
+        next.delete(proposalId)
+        return next
+      })
+    }
   }
 
   return (
@@ -92,73 +154,90 @@ function Tasks() {
       {/* Header */}
       <h1 className="font-serif text-3xl text-[#393939]">Tasks</h1>
       
+      {/* Notion database warning */}
+      {!hasNotionDatabase && (
+        <div className="flex items-center gap-2 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+          <RiAlertLine className="w-5 h-5 flex-shrink-0" />
+          <span>
+            Connect and select a Notion database in{' '}
+            <button 
+              onClick={openConnectionsModal}
+              className="underline hover:text-amber-900 font-medium"
+            >
+              Settings
+            </button>
+            {' '}to approve tasks.
+          </span>
+        </div>
+      )}
+      
       {/* Divider */}
       <div className="w-full h-px bg-[#C5BDAD] mt-4 mb-6" />
       
       {/* Task items area */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-6">
-        {/* Pending Proposals Section */}
-        {(proposalsLoading || proposals.length > 0) && (
-          <div className="mb-4">
-            <h2 className="font-serif text-xl text-[#393939] mb-4 flex items-center gap-2">
-              Pending Proposals
-              {proposals.length > 0 && (
-                <span className="bg-[#8EB879] text-white text-xs px-2 py-0.5 rounded-full">
-                  {proposals.length}
-                </span>
-              )}
-            </h2>
-            
-            {proposalsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <RiLoader4Line className="w-6 h-6 animate-spin text-[#666]" />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {proposals.map((proposal) => (
-                  <ProposalCard
-                    key={proposal.proposal_id}
-                    proposal={proposal}
-                    hasNotionDatabase={hasNotionDatabase}
-                    onDismiss={removeProposal}
-                    onExecute={removeProposal}
-                  />
-                ))}
-              </div>
-            )}
+        {/* Loading state */}
+        {proposalsLoading && (
+          <div className="flex items-center justify-center py-8">
+            <RiLoader4Line className="w-6 h-6 animate-spin text-[#666]" />
           </div>
         )}
 
-        {/* Divider between proposals and tasks */}
-        {proposals.length > 0 && tasks.length > 0 && (
-          <div className="w-full h-px bg-[#C5BDAD] my-2" />
-        )}
-
-        {/* Sample Tasks Section */}
-        {tasks.length > 0 && (
+        {/* Task proposals displayed as TaskItems */}
+        {!proposalsLoading && proposals.length > 0 && (
           <>
-            <h2 className="font-serif text-xl text-[#393939] mb-2">Sample Tasks</h2>
-            {tasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                id={task.id}
-                title={task.title}
-                dueDate={task.dueDate}
-                confidence={task.confidence}
-                sources={task.sources}
-                description={task.description}
-                actionLabel={task.actionLabel}
-                actionIcon={task.actionIcon}
-                detectionReason={task.detectionReason}
-                onAction={() => handleAction(task.id)}
-                onDismiss={handleDismiss}
-              />
-            ))}
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="font-serif text-xl text-[#393939]">Detected Tasks</h2>
+              <span className="bg-[#8EB879] text-white text-xs px-2 py-0.5 rounded-full">
+                {proposals.length}
+              </span>
+            </div>
+            
+            {proposals.map((proposal) => {
+              const isExecuting = executingIds.has(proposal.proposal_id)
+              const isSuccess = successIds.has(proposal.proposal_id)
+              
+              // Show success state
+              if (isSuccess) {
+                return (
+                  <div key={proposal.proposal_id} className="bg-[#E8F5E3] border-2 border-[#8EB879] rounded-2xl p-5 transition-all">
+                    <div className="flex items-center gap-3 text-[#4A7A3A]">
+                      <RiNotionFill className="w-6 h-6" />
+                      <span className="font-medium">Task added to Notion!</span>
+                    </div>
+                  </div>
+                )
+              }
+              
+              return (
+                <TaskItem
+                  key={proposal.proposal_id}
+                  id={proposal.proposal_id}
+                  title={proposal.title}
+                  dueDate={formatDueDate(proposal.due_date)}
+                  confidence={Math.round(proposal.confidence * 100)}
+                  sources={buildSources(proposal)}
+                  description={proposal.description || proposal.source_context.original_content.slice(0, 200) + '...'}
+                  actionLabel={isExecuting ? 'Adding...' : 'Add to Notion'}
+                  actionIcon={isExecuting ? <RiLoader4Line className="w-5 h-5 animate-spin" /> : <RiNotionFill className="w-5 h-5" />}
+                  detectionReason={proposal.reasoning}
+                  onAction={() => handleAddToNotion(proposal.proposal_id)}
+                  onDismiss={handleDismiss}
+                />
+              )
+            })}
           </>
         )}
         
-        {tasks.length === 0 && proposals.length === 0 && !proposalsLoading && (
-          <p className="text-[#393939] text-center py-8">No tasks to display</p>
+        {/* Empty state */}
+        {!proposalsLoading && proposals.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <RiSlackLine className="w-12 h-12 text-[#C5BDAD] mb-4" />
+            <p className="text-[#393939] text-lg font-medium mb-2">No tasks detected yet</p>
+            <p className="text-[#666] text-sm max-w-md">
+              When someone mentions you on Slack with an actionable task, it will appear here for your review.
+            </p>
+          </div>
         )}
       </div>
     </div>

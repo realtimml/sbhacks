@@ -133,9 +133,10 @@ class ComposioService:
         logger.debug(f"[ComposioService] Action params: {params}")
         
         try:
-            result = self.client.actions.execute(
-                action=action,
-                params=params,
+            # Use the new tools.execute API
+            result = self.client.tools.execute(
+                slug=action,
+                arguments=params,
                 user_id=user_id
             )
             

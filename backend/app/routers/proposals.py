@@ -95,31 +95,20 @@ async def execute_proposal(request: ExecuteRequest):
         else:
             full_description = description
         
-        # Execute Notion action via Composio
+        # Execute Notion action via Composio using NOTION_UPSERT_ROW_DATABASE
+        # This adds a row to the user's task database with structured fields
         result = await composio_service.execute_action(
             user_id=USER_ID,
-            action="NOTION_CREATE_PAGE_IN_DATABASE",
+            action="NOTION_UPSERT_ROW_DATABASE",
             params={
                 "database_id": database_id,
-                "properties": {
-                    "Name": {
-                        "title": [{"text": {"content": title}}]
-                    },
-                    "Status": {
-                        "select": {"name": "To Do"}
-                    }
-                },
-                "children": [
-                    {
-                        "object": "block",
-                        "type": "paragraph",
-                        "paragraph": {
-                            "rich_text": [
-                                {"type": "text", "text": {"content": full_description}}
-                            ]
-                        }
-                    }
-                ]
+                "items": [{
+                    "Name": title,
+                    "Description": full_description,
+                    "Priority": proposal.get("priority", "medium").capitalize(),
+                    "Source": proposal.get("source", "slack").upper(),
+                    "Status": "To Do",
+                }]
             }
         )
         

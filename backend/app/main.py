@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.routers import auth, chat, proposals, webhooks, triggers
+from app.routers import auth, chat, proposals, webhooks, triggers, notion
 from app.services import redis_service
 
 
@@ -41,6 +41,7 @@ app.include_router(chat.router)
 app.include_router(proposals.router)
 app.include_router(webhooks.router)
 app.include_router(triggers.router)
+app.include_router(notion.router)
 
 
 @app.get("/")

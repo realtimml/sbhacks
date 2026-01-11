@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getProposals, getProposalCount } from '../lib/api';
 import type { TaskProposal } from '../lib/types';
 
-const POLL_INTERVAL = 30000; // 30 seconds
+const POLL_INTERVAL = 3000; // 30 seconds
 
 interface UseProposalsReturn {
   proposals: TaskProposal[];

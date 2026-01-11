@@ -3,9 +3,12 @@ from typing import Optional
 import logging
 import json
 import os
+from datetime import datetime
 
 from app.services.composio_service import composio_service
 from app.services import redis_service
+from app.services.task_inference import infer_task_from_message
+from app.models.schemas import MessageContext, MessageSource
 
 logger = logging.getLogger(__name__)
 
@@ -168,23 +171,55 @@ async def composio_webhook(
                 json.dumps(mention_event)
             )
             
-            # TODO: Add your response logic here
-            # For example, use composio_service.execute_action to send a reply:
-            #
-            # await composio_service.execute_action(
-            #     user_id=USER_ID,
-            #     action="SLACK_SENDS_A_MESSAGE_TO_A_SLACK_CHANNEL",
-            #     params={
-            #         "channel": message_info.get("channel"),
-            #         "text": "Thanks for reaching out! I received your message."
-            #     }
-            # )
+            # Run task inference on the message
+            logger.info("[Webhooks] Running task inference on Slack message...")
+            
+            # Build message context for inference
+            context = MessageContext(
+                source=MessageSource.SLACK,
+                content=message_info.get("text", ""),
+                sender=message_info.get("user", "unknown"),
+                channel=message_info.get("channel"),
+                timestamp=datetime.now().isoformat(),
+                message_id=message_info.get("ts"),
+            )
+            
+            # Run the two-stage inference pipeline
+            proposal = await infer_task_from_message(context)
+            
+            if proposal:
+                # Store the proposal in Redis for frontend HITL
+                await redis_service.add_proposal(USER_ID, proposal.model_dump())
+                logger.info(f"[Webhooks] Task proposal created: {proposal.title} (confidence: {proposal.confidence})")
+                
+                print("\n" + "="*80)
+                print("✅ TASK DETECTED!")
+                print("="*80)
+                print(f"Title: {proposal.title}")
+                print(f"Confidence: {proposal.confidence * 100:.0f}%")
+                print(f"Priority: {proposal.priority}")
+                print(f"Reasoning: {proposal.reasoning}")
+                print("="*80 + "\n")
+                
+                return {
+                    "status": "processed",
+                    "event_type": "task_proposal_created",
+                    "proposal_id": proposal.proposal_id,
+                    "title": proposal.title,
+                    "confidence": proposal.confidence,
+                }
+            else:
+                logger.info("[Webhooks] Message classified as chat, no task proposal created")
+                print("\n" + "="*80)
+                print("💬 MESSAGE CLASSIFIED AS CHAT (no task)")
+                print("="*80 + "\n")
             
             return {
                 "status": "processed",
                 "event_type": "slack_dm_mention",
                 "sender": message_info.get("user"),
-                "message_preview": message_info.get("text", "")[:100]
+                "message_preview": message_info.get("text", "")[:100],
+                "task_detected": proposal is not None,
             }
         else:
             logger.info("[Webhooks] Slack message received but not a DM mention, skipping")

@@ -25,7 +25,13 @@ export default function NotionDatabasePicker({ isConnected }: NotionDatabasePick
 
   const loadSettings = async () => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotionDatabasePicker.tsx:27',message:'loadSettings called',data:{isConnected},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       const settings = await getNotionSettings();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotionDatabasePicker.tsx:30',message:'loadSettings result',data:{settings},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       setSelectedDatabase(settings);
     } catch (err) {
       console.error('Failed to load Notion settings:', err);
@@ -83,10 +89,19 @@ export default function NotionDatabasePicker({ isConnected }: NotionDatabasePick
   const handleSelect = async (db: NotionDatabase) => {
     setIsSaving(true);
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotionDatabasePicker.tsx:84',message:'handleSelect saving',data:{dbId:db.id,dbTitle:db.title},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       await saveNotionSettings(db.id, db.title);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotionDatabasePicker.tsx:88',message:'handleSelect saved successfully',data:{dbId:db.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       setSelectedDatabase({ database_id: db.id, database_name: db.title });
       setIsOpen(false);
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotionDatabasePicker.tsx:93',message:'handleSelect error',data:{error:String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       setError('Failed to save selection');
       console.error('Failed to save Notion settings:', err);
     } finally {

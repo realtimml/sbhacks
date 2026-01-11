@@ -34,13 +34,26 @@ class NotionSettingsResponse(BaseModel):
 async def get_notion_databases():
     """
     List all Notion databases accessible to the user.
+    Uses NOTION_SEARCH_PAGES_AND_DATABASES with filter for databases.
     """
+    import json as _json
+    LOG_PATH = r"c:\Users\anton\code_and_projects\sbhacks\.cursor\debug.log"
     try:
+        # #region agent log
+        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:38","message":"get_notion_databases called","data":{"USER_ID":USER_ID},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"D"})+"\n")
+        # #endregion
+        # Use search with filter for databases (NOTION_LIST_DATABASES doesn't exist)
         result = await composio_service.execute_action(
             user_id=USER_ID,
-            action="NOTION_LIST_DATABASES",
-            params={}
+            action="NOTION_SEARCH_PAGES_AND_DATABASES",
+            params={
+                "query": "",
+                "filter": {"value": "database", "property": "object"}
+            }
         )
+        # #region agent log
+        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:48","message":"composio execute_action result","data":{"hasError":"error" in result,"resultKeys":list(result.keys()) if isinstance(result, dict) else str(type(result)),"errorMsg":result.get("error") if isinstance(result, dict) else None},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"D"})+"\n")
+        # #endregion
         
         # Handle error response
         if "error" in result:
@@ -148,10 +161,18 @@ async def save_notion_settings(request: NotionSettingsRequest):
     """
     Save the user's selected Notion database.
     """
+    import json as _json
+    LOG_PATH = r"c:\Users\anton\code_and_projects\sbhacks\.cursor\debug.log"
     try:
+        # #region agent log
+        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:152","message":"save_notion_settings called","data":{"USER_ID":USER_ID,"database_id":request.database_id,"database_name":request.database_name},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"})+"\n")
+        # #endregion
         # Save both database_id and database_name
         await redis_service.set_user_setting(USER_ID, "notion_database_id", request.database_id)
         await redis_service.set_user_setting(USER_ID, "notion_database_name", request.database_name)
+        # #region agent log
+        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:158","message":"save_notion_settings completed","data":{"USER_ID":USER_ID,"success":True},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"})+"\n")
+        # #endregion
         
         return {"success": True}
         
@@ -165,9 +186,17 @@ async def get_notion_settings():
     """
     Get the user's saved Notion database settings.
     """
+    import json as _json
+    LOG_PATH = r"c:\Users\anton\code_and_projects\sbhacks\.cursor\debug.log"
     try:
+        # #region agent log
+        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:169","message":"get_notion_settings called","data":{"USER_ID":USER_ID},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"C"})+"\n")
+        # #endregion
         database_id = await redis_service.get_user_setting(USER_ID, "notion_database_id")
         database_name = await redis_service.get_user_setting(USER_ID, "notion_database_name")
+        # #region agent log
+        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:175","message":"redis settings retrieved","data":{"USER_ID":USER_ID,"database_id":database_id,"database_name":database_name},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"C"})+"\n")
+        # #endregion
         
         if not database_id:
             return {"settings": None}
