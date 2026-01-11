@@ -1,9 +1,6 @@
 """
 Gemini Service - Handles all Google Generative AI interactions.
 
-Equivalent to the streamText() logic from @ai-sdk/google in TypeScript.
-Implements the "Agent Loop" pattern for multi-step tool execution.
-
 References:
 - plan.md lines 226-233: Core service requirements
 - plan.md lines 323-331: Structured output for task inference

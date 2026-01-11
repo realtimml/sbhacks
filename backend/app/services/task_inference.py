@@ -33,7 +33,7 @@ async def classify_message(content: str) -> str:
     """
     Stage 1: Quick spam/chat classification.
     
-    Returns "task" or "chat" - cheap and fast.
+    Returns "task" or "chat"
     Uses fail-open strategy: defaults to "task" on error or empty response.
     
     Args:
@@ -114,23 +114,23 @@ async def extract_task_details(
 
 CURRENT DATE: {formatted_date}
 
-TASK INDICATORS (high confidence 0.8-1.0):
+TASK INDICATORS (high confidence 0.80-1.00):
 - Direct requests: "please do", "can you", "need you to", "make sure to"
 - Action items: "TODO", "action item", "follow up", "don't forget"
 - Deadlines: "by Friday", "due tomorrow", "ASAP", "urgent", "EOD", "end of week"
 - Assignments: mentions of the user, "assigned to you", "your responsibility"
 - Commitments: "I'll handle", "I will", "let me take care of"
 
-TASK INDICATORS (medium confidence 0.5-0.8):
+TASK INDICATORS (medium confidence 0.50-0.80):
 - Questions implying action: "Can we schedule?", "Would you be able to?"
 - Suggestions: "We should", "It would be good to"
 - Meeting follow-ups: "As discussed", "Per our conversation"
 
-LOW CONFIDENCE (0.3-0.5):
+LOW CONFIDENCE (0.30-0.50):
 - Vague requests without clear action
 - Information that might need follow-up
 
-NOT TASKS (confidence < 0.3):
+NOT TASKS (confidence < 0.30):
 - Pure informational messages
 - Social chat, greetings
 - Already completed items ("I finished", "Done")
@@ -182,7 +182,7 @@ Determine if this contains an actionable task for the recipient. If yes, extract
         # Return low-confidence negative result on error
         return TaskExtraction(
             is_task=False,
-            confidence=0.0,
+            confidence=0.00,
             task=None,
         )
 
@@ -245,7 +245,7 @@ async def infer_task_from_message(
             message_id=context.message_id,
             thread_id=context.thread_id,
         ),
-        confidence=extraction.confidence,
+        confidence=round(extraction.confidence, 2),
         reasoning=extraction.task.reasoning,
         created_at=datetime.now().isoformat(),
     )

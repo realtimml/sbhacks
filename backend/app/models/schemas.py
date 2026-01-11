@@ -72,7 +72,7 @@ class TaskExtraction(BaseModel):
     Used with Gemini's generation_config.response_schema.
     """
     is_task: bool = Field(..., description="Whether this message contains an actionable task")
-    confidence: float = Field(..., ge=0, le=1, description="Confidence score 0-1")
+    confidence: float = Field(..., ge=0.00, le=1.00, description="Confidence score 0.00-1.00")
     task: Optional[TaskDetails] = None
 
 
