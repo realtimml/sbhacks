@@ -5,7 +5,7 @@ import Tasks from './pages/Tasks'
 import Logo from './components/logo'
 import ChatButton from './components/chatbutton'
 import TaskButton from './components/taskbutton'
-import QuickLinks from './components/quicklinks'
+import QuickLinks from './components/connections'
 import ConnectionsModal, { SlackIcon, GmailIcon, NotionIcon } from './components/ConnectionsModal'
 
 function Layout() {

@@ -27,7 +27,7 @@ export default function QuickLinks({ connections }: QuickLinksProps) {
           className="relative flex items-center justify-center w-18 h-15 bg-[#D5CDBD] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2]"
         >
           <RiNotionLine className="text-[#393939] w-6 h-6" />
-          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full ${isConnected('notion') ? 'bg-green-500' : 'bg-red-500'}`} />
+          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full ${isConnected('notion') ? 'bg-[#8EB879]' : 'bg-[#e57758]'}`} />
         </a>
 
         {/* Google */}
@@ -39,7 +39,7 @@ export default function QuickLinks({ connections }: QuickLinksProps) {
           className="relative flex items-center justify-center w-18 h-15 bg-[#D5CDBD] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2]"
         >
           <BiLogoGmail className="text-[#393939] w-6 h-6" />
-          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full ${isConnected('gmail') ? 'bg-green-500' : 'bg-red-500'}`} />
+          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full ${isConnected('gmail') ? 'bg-[#8EB879]' : 'bg-[#e57758]'}`} />
         </a>
 
         {/* Slack */}
@@ -51,7 +51,7 @@ export default function QuickLinks({ connections }: QuickLinksProps) {
           className="relative flex items-center justify-center w-18 h-15 bg-[#D5CDBD] rounded-lg cursor-pointer transition-all duration-200 hover:bg-[#CAC2B2]"
         >
           <RiSlackLine className="text-[#393939] w-6 h-6" />
-          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full ${isConnected('slack') ? 'bg-green-500' : 'bg-red-500'}`} />
+          <div className={`absolute bottom-2 right-2 w-2 h-2 rounded-full ${isConnected('slack') ? 'bg-[#8EB879]' : 'bg-[#e57758]'}`} />
         </a>
       </div>
     </div>
