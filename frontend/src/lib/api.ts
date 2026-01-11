@@ -146,18 +146,12 @@ export async function streamChat(
  * Get list of Notion databases accessible to the user
  */
 export async function getNotionDatabases(): Promise<NotionDatabase[]> {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:149',message:'getNotionDatabases API call start',data:{apiUrl:API_URL,fullUrl:`${API_URL}/api/notion/databases`},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
   const response = await fetch(`${API_URL}/api/notion/databases`, {
     credentials: 'include',
     headers: {
       'ngrok-skip-browser-warning': 'true',
     },
   });
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:155',message:'getNotionDatabases response',data:{ok:response.ok,status:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-  // #endregion
   if (!response.ok) throw new Error('Failed to fetch Notion databases');
   const data = await response.json();
   return data.databases;
@@ -198,9 +192,6 @@ export async function saveNotionSettings(databaseId: string, databaseName: strin
  * Get user's saved Notion settings
  */
 export async function getNotionSettings(): Promise<NotionSettings | null> {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:188',message:'getNotionSettings API call start',data:{apiUrl:API_URL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const response = await fetch(`${API_URL}/api/notion/settings`, {
     credentials: 'include',
     headers: {
@@ -209,9 +200,6 @@ export async function getNotionSettings(): Promise<NotionSettings | null> {
   });
   if (!response.ok) throw new Error('Failed to fetch Notion settings');
   const data = await response.json();
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/722b834e-d098-4c85-ae9d-3e22007db12f',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.ts:195',message:'getNotionSettings API response',data:{rawData:data,settingsValue:data.settings},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   return data.settings;
 }
 

@@ -3,15 +3,24 @@ from pydantic import BaseModel
 from typing import Optional
 import os
 import logging
-
-from app.services.composio_service import composio_service
-from app.services import redis_service
+import requests
 
 logger = logging.getLogger(__name__)
 
-USER_ID = os.getenv("USER_ID")
-
 router = APIRouter(prefix="/api/notion", tags=["notion"])
+
+# Notion API configuration
+NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "")
+NOTION_VERSION = "2022-06-28"
+HEADERS = {
+    "Authorization": f"Bearer {NOTION_TOKEN}",
+    "Notion-Version": NOTION_VERSION,
+    "Content-Type": "application/json",
+}
+
+# Hardcoded database ID for direct writes
+DATABASE_ID = "2e59fd61a0128028ab15e5c03531bb72"
+DATABASE_NAME = "Tasks"
 
 
 class NotionDatabase(BaseModel):
@@ -30,129 +39,110 @@ class NotionSettingsResponse(BaseModel):
     database_name: str
 
 
+class InsertRowRequest(BaseModel):
+    title: str
+    due_iso: Optional[str] = None
+    title_prop: str = "Task"
+
+
+def notion_search_pages(query: str, *, page_size: int = 10, start_cursor: str | None = None):
+    """Search pages by title text."""
+    url = "https://api.notion.com/v1/search"
+    payload = {
+        "query": query,
+        "filter": {"property": "object", "value": "page"},
+        "page_size": page_size,
+    }
+    if start_cursor:
+        payload["start_cursor"] = start_cursor
+    r = requests.post(url, headers=HEADERS, json=payload, timeout=30)
+    r.raise_for_status()
+    return r.json()
+
+
+def insert_row(database_id: str, *, title_prop: str, title: str, due_iso: str | None = None):
+    """
+    Create a new row (page) in a database.
+    title_prop must match your database's title column name EXACTLY.
+    In your database, the title property name is likely "Task" (not "Name").
+    """
+    url = "https://api.notion.com/v1/pages"
+    properties = {
+        title_prop: {
+            "title": [{"text": {"content": title}}]
+        }
+    }
+    if due_iso is not None:
+        # property name must exist in the DB and be type "date"
+        properties["Due"] = {"date": {"start": due_iso}}
+    payload = {
+        "parent": {"database_id": database_id},
+        "properties": properties,
+    }
+    r = requests.post(url, headers=HEADERS, json=payload, timeout=30)
+    r.raise_for_status()
+    return r.json()
+
+
 @router.get("/databases")
 async def get_notion_databases():
     """
     List all Notion databases accessible to the user.
-    Uses NOTION_SEARCH_PAGES_AND_DATABASES with filter for databases.
+    Returns the hardcoded database since we're using direct Notion API.
     """
-    import json as _json
-    LOG_PATH = r"c:\Users\anton\code_and_projects\sbhacks\.cursor\debug.log"
-    try:
-        # #region agent log
-        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:38","message":"get_notion_databases called","data":{"USER_ID":USER_ID},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"D"})+"\n")
-        # #endregion
-        # Use search with filter for databases (NOTION_LIST_DATABASES doesn't exist)
-        result = await composio_service.execute_action(
-            user_id=USER_ID,
-            action="NOTION_SEARCH_PAGES_AND_DATABASES",
-            params={
-                "query": "",
-                "filter": {"value": "database", "property": "object"}
+    # Return the hardcoded database
+    return {
+        "databases": [
+            {
+                "id": DATABASE_ID,
+                "title": DATABASE_NAME,
+                "icon": None
             }
-        )
-        # #region agent log
-        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:48","message":"composio execute_action result","data":{"hasError":"error" in result,"resultKeys":list(result.keys()) if isinstance(result, dict) else str(type(result)),"errorMsg":result.get("error") if isinstance(result, dict) else None},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"D"})+"\n")
-        # #endregion
-        
-        # Handle error response
-        if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
-        
-        # Extract databases from result
-        databases = []
-        results_data = result.get("data", {}).get("results", [])
-        if not results_data:
-            results_data = result.get("results", [])
-        
-        for db in results_data:
-            db_id = db.get("id", "")
-            # Extract title from title array
-            title_arr = db.get("title", [])
-            title = ""
-            if title_arr and len(title_arr) > 0:
-                title = title_arr[0].get("plain_text", "") or title_arr[0].get("text", {}).get("content", "")
-            
-            # Extract icon
-            icon = None
-            icon_obj = db.get("icon")
-            if icon_obj:
-                if icon_obj.get("type") == "emoji":
-                    icon = icon_obj.get("emoji")
-                elif icon_obj.get("type") == "external":
-                    icon = icon_obj.get("external", {}).get("url")
-            
-            if db_id:
-                databases.append({
-                    "id": db_id,
-                    "title": title or "Untitled",
-                    "icon": icon
-                })
-        
-        return {"databases": databases}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error listing Notion databases: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        ]
+    }
 
 
 @router.get("/databases/search")
 async def search_notion_databases(q: str = Query(..., min_length=1)):
     """
-    Search for Notion databases by name.
+    Search for Notion pages by name using direct Notion API.
     """
     try:
-        result = await composio_service.execute_action(
-            user_id=USER_ID,
-            action="NOTION_SEARCH_PAGES_AND_DATABASES",
-            params={
-                "query": q,
-                "filter": {"value": "database", "property": "object"}
-            }
-        )
+        result = notion_search_pages(q, page_size=10)
         
-        # Handle error response
-        if "error" in result:
-            raise HTTPException(status_code=500, detail=result["error"])
-        
-        # Extract databases from result
-        databases = []
-        results_data = result.get("data", {}).get("results", [])
-        if not results_data:
-            results_data = result.get("results", [])
-        
-        for db in results_data:
-            db_id = db.get("id", "")
-            # Extract title from title array
-            title_arr = db.get("title", [])
-            title = ""
-            if title_arr and len(title_arr) > 0:
-                title = title_arr[0].get("plain_text", "") or title_arr[0].get("text", {}).get("content", "")
+        pages = []
+        for page in result.get("results", []):
+            page_id = page.get("id", "")
+            # Extract title from properties
+            title = "Untitled"
+            props = page.get("properties", {})
+            for prop_value in props.values():
+                if prop_value.get("type") == "title":
+                    title_arr = prop_value.get("title", [])
+                    if title_arr:
+                        title = title_arr[0].get("plain_text", "Untitled")
+                    break
             
             # Extract icon
             icon = None
-            icon_obj = db.get("icon")
+            icon_obj = page.get("icon")
             if icon_obj:
                 if icon_obj.get("type") == "emoji":
                     icon = icon_obj.get("emoji")
                 elif icon_obj.get("type") == "external":
                     icon = icon_obj.get("external", {}).get("url")
             
-            if db_id:
-                databases.append({
-                    "id": db_id,
-                    "title": title or "Untitled",
+            if page_id:
+                pages.append({
+                    "id": page_id,
+                    "title": title,
                     "icon": icon
                 })
         
-        return {"databases": databases}
+        return {"databases": pages}
         
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error searching Notion databases: {e}")
+    except requests.RequestException as e:
+        logger.error(f"Error searching Notion pages: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -160,55 +150,42 @@ async def search_notion_databases(q: str = Query(..., min_length=1)):
 async def save_notion_settings(request: NotionSettingsRequest):
     """
     Save the user's selected Notion database.
+    With hardcoded database, this is a no-op but kept for API compatibility.
     """
-    import json as _json
-    LOG_PATH = r"c:\Users\anton\code_and_projects\sbhacks\.cursor\debug.log"
-    try:
-        # #region agent log
-        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:152","message":"save_notion_settings called","data":{"USER_ID":USER_ID,"database_id":request.database_id,"database_name":request.database_name},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"})+"\n")
-        # #endregion
-        # Save both database_id and database_name
-        await redis_service.set_user_setting(USER_ID, "notion_database_id", request.database_id)
-        await redis_service.set_user_setting(USER_ID, "notion_database_name", request.database_name)
-        # #region agent log
-        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:158","message":"save_notion_settings completed","data":{"USER_ID":USER_ID,"success":True},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"B"})+"\n")
-        # #endregion
-        
-        return {"success": True}
-        
-    except Exception as e:
-        logger.error(f"Error saving Notion settings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"success": True}
 
 
 @router.get("/settings")
 async def get_notion_settings():
     """
     Get the user's saved Notion database settings.
+    Hardcoded database ID for direct writes without selection.
     """
-    import json as _json
-    LOG_PATH = r"c:\Users\anton\code_and_projects\sbhacks\.cursor\debug.log"
-    try:
-        # #region agent log
-        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:169","message":"get_notion_settings called","data":{"USER_ID":USER_ID},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"C"})+"\n")
-        # #endregion
-        database_id = await redis_service.get_user_setting(USER_ID, "notion_database_id")
-        database_name = await redis_service.get_user_setting(USER_ID, "notion_database_name")
-        # #region agent log
-        with open(LOG_PATH, "a") as _f: _f.write(_json.dumps({"location":"notion.py:175","message":"redis settings retrieved","data":{"USER_ID":USER_ID,"database_id":database_id,"database_name":database_name},"timestamp":__import__('time').time()*1000,"sessionId":"debug-session","hypothesisId":"C"})+"\n")
-        # #endregion
-        
-        if not database_id:
-            return {"settings": None}
-        
-        return {
-            "settings": {
-                "database_id": database_id,
-                "database_name": database_name or "Unknown"
-            }
+    return {
+        "settings": {
+            "database_id": DATABASE_ID,
+            "database_name": DATABASE_NAME
         }
-        
-    except Exception as e:
-        logger.error(f"Error getting Notion settings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    }
 
+
+@router.post("/insert")
+async def insert_notion_row(request: InsertRowRequest):
+    """
+    Insert a new row into the hardcoded Notion database.
+    """
+    try:
+        result = insert_row(
+            DATABASE_ID,
+            title_prop=request.title_prop,
+            title=request.title,
+            due_iso=request.due_iso
+        )
+        return {
+            "success": True,
+            "page_id": result.get("id"),
+            "url": result.get("url")
+        }
+    except requests.RequestException as e:
+        logger.error(f"Error inserting Notion row: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

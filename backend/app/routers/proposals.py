@@ -5,7 +5,7 @@ import os
 import logging
 
 from app.services import redis_service
-from app.services.composio_service import composio_service
+from app.routers.notion import insert_row, DATABASE_ID
 
 logger = logging.getLogger(__name__)
 
@@ -51,18 +51,9 @@ async def delete_proposal(proposal_id: str):
 @router.post("/execute")
 async def execute_proposal(request: ExecuteRequest):
     """
-    Execute a proposal - creates a Notion page in the user's selected database.
+    Execute a proposal - creates a Notion page in the hardcoded database using direct API.
     """
     try:
-        # Get the user's selected Notion database
-        database_id = await redis_service.get_user_setting(USER_ID, "notion_database_id")
-        
-        if not database_id:
-            raise HTTPException(
-                status_code=400, 
-                detail="No Notion database configured. Please select a database in settings."
-            )
-        
         # Get the proposal from Redis
         proposals = await redis_service.get_proposals(USER_ID)
         proposal = None
@@ -76,46 +67,15 @@ async def execute_proposal(request: ExecuteRequest):
         
         # Build Notion page content
         title = proposal.get("title", "Untitled Task")
-        description = proposal.get("description", "")
+        due_date = proposal.get("due_date")  # ISO format date string
         
-        # Add source context to description
-        source_context = proposal.get("source_context", {})
-        if source_context:
-            source = proposal.get("source", "unknown")
-            sender = source_context.get("sender", "Unknown")
-            original = source_context.get("original_content", "")[:500]
-            
-            description_parts = [description] if description else []
-            description_parts.append(f"\n\n---\nSource: {source.upper()}")
-            description_parts.append(f"From: {sender}")
-            if original:
-                description_parts.append(f"Original message:\n{original}")
-            
-            full_description = "\n".join(description_parts)
-        else:
-            full_description = description
-        
-        # Execute Notion action via Composio using NOTION_UPSERT_ROW_DATABASE
-        # This adds a row to the user's task database with structured fields
-        result = await composio_service.execute_action(
-            user_id=USER_ID,
-            action="NOTION_UPSERT_ROW_DATABASE",
-            params={
-                "database_id": database_id,
-                "items": [{
-                    "Name": title,
-                    "Description": full_description,
-                    "Priority": proposal.get("priority", "medium").capitalize(),
-                    "Source": proposal.get("source", "slack").upper(),
-                    "Status": "To Do",
-                }]
-            }
+        # Insert row using direct Notion API with hardcoded database
+        result = insert_row(
+            DATABASE_ID,
+            title_prop="Task",  # Must match your database's title column name
+            title=title,
+            due_iso=due_date
         )
-        
-        # Check for errors in result
-        if "error" in result:
-            logger.error(f"Notion action failed: {result['error']}")
-            raise HTTPException(status_code=500, detail=f"Failed to create Notion page: {result['error']}")
         
         # Remove the proposal from Redis after successful execution
         await redis_service.remove_proposal(USER_ID, request.proposal_id)
@@ -125,7 +85,8 @@ async def execute_proposal(request: ExecuteRequest):
         return {
             "success": True,
             "proposal_id": request.proposal_id,
-            "notion_page_id": result.get("data", {}).get("id") or result.get("id")
+            "notion_page_id": result.get("id"),
+            "notion_url": result.get("url")
         }
         
     except HTTPException:

@@ -8,9 +8,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: "https://taliyah-footless-abdullah.ngrok-free.dev",
+        target: "http://localhost:8000",
         changeOrigin: true,
-        secure: true
+        secure: false
       }
     }
   }
