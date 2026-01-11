@@ -9,7 +9,7 @@ composio = Composio(api_key=os.getenv("COMPOSIO_API_KEY"))
 
 auth_config_id = "ac_JiFqwXAD-Wmj"# TODO
 
-user_id = str(uuid.uuid4())
+user_id = os.getenv("USER_ID")
 
 connection_request = composio.connected_accounts.link(auth_config_id=auth_config_id, user_id=user_id, callback_url="http://www.google.com")
 
