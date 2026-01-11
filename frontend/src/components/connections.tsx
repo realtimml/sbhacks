@@ -16,7 +16,7 @@ export default function QuickLinks({ connections }: QuickLinksProps) {
 
   return (
     <div className="flex flex-col gap-3 mb-6">
-      <h3 className="font-serif text-xl text-[#393939]">Quick Links</h3>
+      <h3 className="font-serif text-xl text-[#393939]">Connections</h3>
       <div className="flex gap-2">
         {/* Notion */}
         <a
