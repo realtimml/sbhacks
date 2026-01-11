@@ -7,7 +7,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://localhost:8000'
+      '/api': {
+        target: "https://taliyah-footless-abdullah.ngrok-free.dev",
+        changeOrigin: true,
+        secure: true
+      }
     }
   }
 })

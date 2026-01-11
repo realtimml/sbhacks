@@ -156,6 +156,254 @@ class ComposioService:
             logger.error(f"[ComposioService] Error executing action {action}: {e}")
             return {"error": str(e)}
 
+    # =========================================================================
+    # Trigger Management
+    # =========================================================================
+
+    def get_active_connection(self, user_id: str, toolkit: str) -> str | None:
+        """
+        Get active connected account ID for a toolkit.
+        
+        Args:
+            user_id: The entity ID for the user
+            toolkit: The toolkit name (e.g., "GMAIL", "SLACK")
+            
+        Returns:
+            Connected account ID if found, None otherwise
+        """
+        logger.info(f"[ComposioService] Getting active connection for {toolkit}")
+        
+        try:
+            connected_accounts = self.client.connected_accounts.list(
+                user_ids=[user_id],
+                toolkit_slugs=[toolkit.upper()],
+            )
+            
+            items = connected_accounts.items if hasattr(connected_accounts, 'items') else []
+            for account in items:
+                status = getattr(account, 'status', None)
+                if status == "ACTIVE":
+                    account_id = getattr(account, 'id', None)
+                    logger.info(f"[ComposioService] Found active {toolkit} connection: {account_id}")
+                    return account_id
+            
+            logger.info(f"[ComposioService] No active {toolkit} connection found")
+            return None
+            
+        except Exception as e:
+            logger.error(f"[ComposioService] Error getting active connection: {e}")
+            return None
+
+    def check_existing_trigger(self, connected_account_id: str, trigger_slug: str) -> str | None:
+        """
+        Check if a trigger already exists for the connected account.
+        
+        Args:
+            connected_account_id: The connected account ID
+            trigger_slug: The trigger slug (e.g., "GMAIL_NEW_GMAIL_MESSAGE")
+            
+        Returns:
+            Trigger ID if exists, None otherwise
+        """
+        logger.info(f"[ComposioService] Checking for existing trigger: {trigger_slug}")
+        
+        try:
+            triggers = self.client.triggers.list_active(
+                trigger_names=[trigger_slug],
+                connected_account_ids=[connected_account_id],
+            )
+            
+            items = triggers.items if hasattr(triggers, 'items') else triggers
+            for trigger in items:
+                trigger_id = getattr(trigger, 'id', None) or trigger.get('id') if isinstance(trigger, dict) else None
+                if trigger_id:
+                    logger.info(f"[ComposioService] Found existing trigger: {trigger_id}")
+                    return trigger_id
+            
+            logger.info(f"[ComposioService] No existing trigger found for {trigger_slug}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"[ComposioService] Error checking existing trigger: {e}")
+            return None
+
+    def create_trigger(self, user_id: str, toolkit: str, trigger_slug: str) -> str:
+        """
+        Create a trigger safely, checking for existing ones first.
+        
+        Args:
+            user_id: The entity ID for the user
+            toolkit: The toolkit name (e.g., "GMAIL", "SLACK")
+            trigger_slug: The trigger slug (e.g., "GMAIL_NEW_GMAIL_MESSAGE")
+            
+        Returns:
+            Trigger ID (existing or newly created)
+            
+        Raises:
+            ValueError: If no active connection found for toolkit
+        """
+        logger.info(f"[ComposioService] Creating trigger: {trigger_slug} for toolkit: {toolkit}")
+        
+        # Get connected account
+        account_id = self.get_active_connection(user_id, toolkit)
+        if not account_id:
+            raise ValueError(f"No active {toolkit} connection found for user {user_id}")
+        
+        # Check for existing trigger
+        existing_trigger = self.check_existing_trigger(account_id, trigger_slug)
+        if existing_trigger:
+            logger.info(f"[ComposioService] Using existing trigger: {existing_trigger}")
+            return existing_trigger
+        
+        # Create new trigger
+        try:
+            response = self.client.triggers.create(
+                slug=trigger_slug,
+                connected_account_id=account_id,
+                trigger_config={}
+            )
+            
+            trigger_id = getattr(response, 'trigger_id', None) or getattr(response, 'id', None)
+            logger.info(f"[ComposioService] Created new trigger: {trigger_id}")
+            return trigger_id
+            
+        except Exception as e:
+            logger.error(f"[ComposioService] Error creating trigger: {e}")
+            raise
+
+    def set_callback_url(self, callback_url: str) -> bool:
+        """
+        Set the global webhook callback URL for all triggers.
+        
+        Args:
+            callback_url: The public URL where Composio will send webhook events
+            
+        Returns:
+            True if successful
+        """
+        logger.info(f"[ComposioService] Setting callback URL: {callback_url}")
+        
+        try:
+            # Try the triggers.set_callback_url method
+            if hasattr(self.client.triggers, 'set_callback_url'):
+                self.client.triggers.set_callback_url(callback_url)
+                logger.info(f"[ComposioService] Callback URL set successfully")
+                return True
+            # Try alternative method names
+            elif hasattr(self.client.triggers, 'callback'):
+                self.client.triggers.callback(callback_url)
+                logger.info(f"[ComposioService] Callback URL set via .callback()")
+                return True
+            else:
+                logger.warning(f"[ComposioService] No callback URL method found on triggers client")
+                return False
+        except Exception as e:
+            logger.error(f"[ComposioService] Error setting callback URL: {e}")
+            return False
+
+    def create_trigger_with_account(
+        self, 
+        connected_account_id: str, 
+        trigger_slug: str, 
+        trigger_config: dict | None = None
+    ) -> str:
+        """
+        Create a trigger directly with a connected account ID.
+        
+        Args:
+            connected_account_id: The connected account ID (e.g., "ca_-Fgp2VOkDHKC")
+            trigger_slug: The trigger slug (e.g., "SLACK_RECEIVE_MESSAGE")
+            trigger_config: Optional trigger configuration
+            
+        Returns:
+            Trigger ID
+        """
+        logger.info(f"[ComposioService] Creating trigger {trigger_slug} for account: {connected_account_id}")
+        
+        try:
+            response = self.client.triggers.create(
+                slug=trigger_slug,
+                connected_account_id=connected_account_id,
+                trigger_config=trigger_config or {}
+            )
+            
+            trigger_id = getattr(response, 'trigger_id', None) or getattr(response, 'id', None)
+            logger.info(f"[ComposioService] Created trigger: {trigger_id}")
+            return trigger_id
+            
+        except Exception as e:
+            logger.error(f"[ComposioService] Error creating trigger: {e}")
+            raise
+
+    def delete_trigger(self, trigger_id: str) -> bool:
+        """
+        Delete a trigger by ID.
+        
+        Args:
+            trigger_id: The trigger ID to delete
+            
+        Returns:
+            True if deleted successfully
+        """
+        logger.info(f"[ComposioService] Deleting trigger: {trigger_id}")
+        
+        try:
+            self.client.triggers.delete(trigger_id=trigger_id)
+            logger.info(f"[ComposioService] Trigger {trigger_id} deleted successfully")
+            return True
+        except Exception as e:
+            logger.error(f"[ComposioService] Error deleting trigger: {e}")
+            return False
+
+    def list_active_triggers(self, user_id: str) -> list[dict]:
+        """
+        List all active triggers for a user.
+        
+        Args:
+            user_id: The entity ID for the user
+            
+        Returns:
+            List of trigger info dicts
+        """
+        logger.info(f"[ComposioService] Listing active triggers for user: {user_id}")
+        
+        try:
+            # Get all connected accounts for user
+            connected_accounts = self.client.connected_accounts.list(user_ids=[user_id])
+            account_ids = []
+            
+            items = connected_accounts.items if hasattr(connected_accounts, 'items') else []
+            for account in items:
+                if getattr(account, 'status', None) == "ACTIVE":
+                    account_ids.append(getattr(account, 'id', None))
+            
+            if not account_ids:
+                return []
+            
+            # Get triggers for all connected accounts
+            triggers = self.client.triggers.list_active(
+                connected_account_ids=account_ids,
+            )
+            
+            result = []
+            trigger_items = triggers.items if hasattr(triggers, 'items') else triggers
+            for trigger in trigger_items:
+                if isinstance(trigger, dict):
+                    result.append(trigger)
+                else:
+                    result.append({
+                        "id": getattr(trigger, 'id', None),
+                        "trigger_name": getattr(trigger, 'trigger_name', None),
+                        "status": getattr(trigger, 'status', None),
+                    })
+            
+            logger.info(f"[ComposioService] Found {len(result)} active triggers")
+            return result
+            
+        except Exception as e:
+            logger.error(f"[ComposioService] Error listing triggers: {e}")
+            return []
+
 
 composio_service = ComposioService()
 

@@ -1,6 +1,9 @@
-import { useState } from 'react'
-import { RiGoogleFill, RiNotionFill, RiSlackLine, RiErrorWarningLine } from 'react-icons/ri'
+import { useState, useEffect } from 'react'
+import { RiGoogleFill, RiNotionFill, RiSlackLine, RiErrorWarningLine, RiLoader4Line } from 'react-icons/ri'
 import TaskItem from '../components/TaskItem'
+import ProposalCard from '../components/ProposalCard'
+import { useProposals } from '../hooks/useProposals'
+import { getNotionSettings } from '../lib/api'
 
 interface Task {
   id: string
@@ -59,6 +62,21 @@ const sampleTasks: Task[] = [
 
 function Tasks() {
   const [tasks, setTasks] = useState<Task[]>(sampleTasks)
+  const [hasNotionDatabase, setHasNotionDatabase] = useState(false)
+  const { proposals, isLoading: proposalsLoading, removeProposal } = useProposals()
+
+  // Check if user has selected a Notion database
+  useEffect(() => {
+    const checkNotionSettings = async () => {
+      try {
+        const settings = await getNotionSettings()
+        setHasNotionDatabase(!!settings?.database_id)
+      } catch (err) {
+        console.error('Failed to check Notion settings:', err)
+      }
+    }
+    checkNotionSettings()
+  }, [])
 
   const handleDismiss = (id: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== id))
@@ -79,23 +97,67 @@ function Tasks() {
       
       {/* Task items area */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-6">
-        {tasks.map((task) => (
-          <TaskItem
-            key={task.id}
-            id={task.id}
-            title={task.title}
-            dueDate={task.dueDate}
-            confidence={task.confidence}
-            sources={task.sources}
-            description={task.description}
-            actionLabel={task.actionLabel}
-            actionIcon={task.actionIcon}
-            detectionReason={task.detectionReason}
-            onAction={() => handleAction(task.id)}
-            onDismiss={handleDismiss}
-          />
-        ))}
-        {tasks.length === 0 && (
+        {/* Pending Proposals Section */}
+        {(proposalsLoading || proposals.length > 0) && (
+          <div className="mb-4">
+            <h2 className="font-serif text-xl text-[#393939] mb-4 flex items-center gap-2">
+              Pending Proposals
+              {proposals.length > 0 && (
+                <span className="bg-[#8EB879] text-white text-xs px-2 py-0.5 rounded-full">
+                  {proposals.length}
+                </span>
+              )}
+            </h2>
+            
+            {proposalsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <RiLoader4Line className="w-6 h-6 animate-spin text-[#666]" />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {proposals.map((proposal) => (
+                  <ProposalCard
+                    key={proposal.proposal_id}
+                    proposal={proposal}
+                    hasNotionDatabase={hasNotionDatabase}
+                    onDismiss={removeProposal}
+                    onExecute={removeProposal}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Divider between proposals and tasks */}
+        {proposals.length > 0 && tasks.length > 0 && (
+          <div className="w-full h-px bg-[#C5BDAD] my-2" />
+        )}
+
+        {/* Sample Tasks Section */}
+        {tasks.length > 0 && (
+          <>
+            <h2 className="font-serif text-xl text-[#393939] mb-2">Sample Tasks</h2>
+            {tasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                id={task.id}
+                title={task.title}
+                dueDate={task.dueDate}
+                confidence={task.confidence}
+                sources={task.sources}
+                description={task.description}
+                actionLabel={task.actionLabel}
+                actionIcon={task.actionIcon}
+                detectionReason={task.detectionReason}
+                onAction={() => handleAction(task.id)}
+                onDismiss={handleDismiss}
+              />
+            ))}
+          </>
+        )}
+        
+        {tasks.length === 0 && proposals.length === 0 && !proposalsLoading && (
           <p className="text-[#393939] text-center py-8">No tasks to display</p>
         )}
       </div>

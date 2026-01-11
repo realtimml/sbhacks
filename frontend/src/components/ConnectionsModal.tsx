@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BiLogoGmail } from 'react-icons/bi';
 import { RiAddLargeLine, RiNotionLine, RiSlackLine } from 'react-icons/ri';
+import NotionDatabasePicker from './NotionDatabasePicker';
 
 interface Connection {
   id: string;
@@ -36,6 +37,9 @@ export default function ConnectionsModal({
 
   if (!isOpen) return null;
 
+  const notionConnection = connections.find(c => c.id === 'notion');
+  const isNotionConnected = notionConnection?.connected ?? false;
+
   return (
     <>
       {/* Backdrop */}
@@ -60,7 +64,7 @@ export default function ConnectionsModal({
           </div>
 
           {/* Connection buttons */}
-          <div className="px-8 pb-8 space-y-3">
+          <div className="px-8 pb-6 space-y-3">
             {connections.map((connection) => (
               <button
                 key={connection.id}
@@ -87,6 +91,18 @@ export default function ConnectionsModal({
               </button>
             ))}
           </div>
+
+          {/* Notion Database Picker - shown when Notion is connected */}
+          {isNotionConnected && (
+            <div className="px-8 pb-8">
+              <div className="w-full h-px bg-[#C5BDAD] mb-4" />
+              <h3 className="font-serif text-xl text-[#3A3A38] mb-2">Notion Settings</h3>
+              <p className="text-sm text-[#666] mb-3">
+                Select the database where approved tasks will be saved.
+              </p>
+              <NotionDatabasePicker isConnected={isNotionConnected} />
+            </div>
+          )}
         </div>
       </div>
     </>

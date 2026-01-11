@@ -1,4 +1,4 @@
-import type { ChatChunk } from './types';
+import type { ChatChunk, NotionDatabase, NotionSettings, TaskProposal } from './types';
 
 // Empty string = relative URLs go through Vite proxy
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -33,6 +33,9 @@ export function getUserId(): string {
 export async function initiateOAuth(app: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/auth/${app}/start`, {
     credentials: 'include', // Send cookies for session
+    headers: {
+      'ngrok-skip-browser-warning': 'true', // Skip ngrok interstitial
+    },
   });
   if (!response.ok) throw new Error('Failed to initiate OAuth');
   const data = await response.json();
@@ -48,6 +51,9 @@ export async function initiateOAuth(app: string): Promise<void> {
 export async function getConnections(): Promise<string[]> {
   const response = await fetch(`${API_URL}/api/auth/connections`, {
     credentials: 'include',
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+    },
   });
   if (!response.ok) throw new Error('Failed to fetch connections');
   const data = await response.json();
@@ -130,4 +136,120 @@ export async function streamChat(
       }
     }
   }
+}
+
+// =============================================================================
+// Notion API Functions
+// =============================================================================
+
+/**
+ * Get list of Notion databases accessible to the user
+ */
+export async function getNotionDatabases(): Promise<NotionDatabase[]> {
+  const response = await fetch(`${API_URL}/api/notion/databases`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch Notion databases');
+  const data = await response.json();
+  return data.databases;
+}
+
+/**
+ * Search Notion databases by query string
+ */
+export async function searchNotionDatabases(query: string): Promise<NotionDatabase[]> {
+  const response = await fetch(`${API_URL}/api/notion/databases/search?q=${encodeURIComponent(query)}`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to search Notion databases');
+  const data = await response.json();
+  return data.databases;
+}
+
+/**
+ * Save user's selected Notion database
+ */
+export async function saveNotionSettings(databaseId: string, databaseName: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/notion/settings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ database_id: databaseId, database_name: databaseName }),
+  });
+  if (!response.ok) throw new Error('Failed to save Notion settings');
+}
+
+/**
+ * Get user's saved Notion settings
+ */
+export async function getNotionSettings(): Promise<NotionSettings | null> {
+  const response = await fetch(`${API_URL}/api/notion/settings`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch Notion settings');
+  const data = await response.json();
+  return data.settings;
+}
+
+// =============================================================================
+// Proposals API Functions
+// =============================================================================
+
+/**
+ * Get all pending proposals for the user
+ */
+export async function getProposals(): Promise<TaskProposal[]> {
+  const response = await fetch(`${API_URL}/api/proposals`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch proposals');
+  const data = await response.json();
+  return data.proposals;
+}
+
+/**
+ * Get the count of pending proposals
+ */
+export async function getProposalCount(): Promise<number> {
+  const response = await fetch(`${API_URL}/api/proposals/count`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch proposal count');
+  const data = await response.json();
+  return data.count;
+}
+
+/**
+ * Dismiss/delete a proposal
+ */
+export async function dismissProposal(proposalId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/proposals/${proposalId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to dismiss proposal');
+}
+
+/**
+ * Execute a proposal (create Notion page)
+ */
+export async function executeProposal(proposalId: string): Promise<{ success: boolean; error?: string; notion_page_id?: string }> {
+  const response = await fetch(`${API_URL}/api/proposals/execute`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ proposal_id: proposalId }),
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    return { success: false, error: data.detail || 'Failed to execute proposal' };
+  }
+  
+  return { success: true, notion_page_id: data.notion_page_id };
 }

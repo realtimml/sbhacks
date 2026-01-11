@@ -26,6 +26,9 @@ class Settings(BaseSettings):
 
     # To link back to the frontend
     FRONTEND_URL: str = "http://localhost:5173"
+    
+    # Backend URL for Composio webhooks (set to ngrok URL in production)
+    BACKEND_URL: str = "http://localhost:8000"
 
     # Webhook signature 
     WEBHOOK_SECRET: Optional[str] = None

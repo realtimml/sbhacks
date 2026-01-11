@@ -24,6 +24,7 @@ origins = [
     "http://localhost:5173",  # Vite dev server
     "http://localhost:3000",
     "http://127.0.0.1:5173",
+    "https://taliyah-footless-abdullah.ngrok-free.dev",  # ngrok backend
 ]
 
 app.add_middleware(
