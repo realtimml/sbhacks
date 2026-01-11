@@ -44,6 +44,59 @@ class ComposioService:
                 result.append(toolkit_name)
         return result
 
+    def get_connected_account(self, user_id: str, app: str) -> str | None:
+        """Get the connected account ID for a specific app and user"""
+        response = self.client.connected_accounts.list(user_ids=[user_id])
+        items = response.items if hasattr(response, 'items') else []
+        for item in items:
+            status = getattr(item, 'status', None)
+            toolkit = getattr(item, 'toolkit', None)
+            toolkit_name = getattr(toolkit, 'name', None) or getattr(toolkit, 'slug', None) if toolkit else None
+            if status == "ACTIVE" and toolkit_name and toolkit_name.lower() == app.lower():
+                return getattr(item, 'id', None)
+        return None
+
+    def execute_action(self, user_id: str, action: str, params: dict) -> dict:
+        """
+        Execute a Composio action on behalf of a user.
+        
+        Args:
+            user_id: The entity/user ID
+            action: Composio action name (e.g., 'GOOGLECALENDAR_CREATE_EVENT')
+            params: Action-specific parameters
+            
+        Returns:
+            dict with execution result or error
+        """
+        # Map action to app for finding the right connected account
+        action_to_app = {
+            "NOTION_CREATE_PAGE": "notion",
+            "NOTION_CREATE_DATABASE_ITEM": "notion",
+            "GMAIL_SEND_EMAIL": "gmail",
+            "SLACK_SEND_MESSAGE": "slack",
+        }
+        
+        app = action_to_app.get(action)
+        if not app:
+            raise ValueError(f"Unknown action: {action}")
+        
+        connected_account_id = self.get_connected_account(user_id, app)
+        if not connected_account_id:
+            raise ValueError(f"No connected {app} account for user {user_id}")
+        
+        # Execute the action
+        result = self.client.actions.execute(
+            action=action,
+            params=params,
+            connected_account_id=connected_account_id
+        )
+        
+        return {
+            "success": True,
+            "data": result.data if hasattr(result, 'data') else result,
+            "action": action
+        }
+
 
 composio_service = ComposioService()
 
