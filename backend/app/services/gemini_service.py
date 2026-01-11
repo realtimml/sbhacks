@@ -1,23 +1,13 @@
 """
 Gemini Service - Handles all Google Generative AI interactions.
 
-Equivalent to the streamText() logic from @ai-sdk/google in TypeScript.
-Implements the "Agent Loop" pattern for multi-step tool execution.
-
 References:
 - plan.md lines 226-233: Core service requirements
 - plan.md lines 323-331: Structured output for task inference
 """
 
-import google.generativeai as genai
-from google.generativeai.types import (
-    GenerationConfig,
-    Content,
-    Part,
-    FunctionDeclaration,
-    Tool,
-)
-from google.protobuf.struct_pb2 import Struct
+from google import genai
+from google.genai import types
 from typing import AsyncGenerator, Any, Callable, Awaitable
 from pydantic import BaseModel
 import json
@@ -26,9 +16,6 @@ import logging
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-# Configure API key globally at module load
-genai.configure(api_key=settings.GOOGLE_GENERATIVE_AI_API_KEY)
 
 
 class GeminiService:
@@ -51,6 +38,7 @@ class GeminiService:
         stream_chat() to allow dynamic system_instruction injection.
         """
         self.model_name = model_name
+        self.client = genai.Client(api_key=settings.GOOGLE_GENERATIVE_AI_API_KEY)
         logger.info(f"[GeminiService] Initialized with model: {model_name}")
     
     async def stream_chat(
@@ -95,10 +83,9 @@ class GeminiService:
         
         # Step 2: Create model with dynamic system_instruction
         # We instantiate per-request to inject dynamic content (date/time)
-        model = genai.GenerativeModel(
-            model_name=self.model_name,
-            tools=gemini_tools,
+        config = types.GenerateContentConfig(
             system_instruction=system_prompt,
+            tools=gemini_tools
         )
         
         # Step 3: Convert message history (all but last message)
@@ -110,9 +97,10 @@ class GeminiService:
         # Step 4: Start chat session
         # CRITICAL: enable_automatic_function_calling=False allows us to intercept
         # tool calls, yield them to frontend via SSE, execute manually, then continue
-        chat = model.start_chat(
-            history=history,
-            enable_automatic_function_calling=False,
+        chat = self.client.aio.chats.create(
+            model=self.model_name,
+            config=config,
+            history=history
         )
         
         logger.info(f"[GeminiService] Chat session started with {len(history)} history messages")
@@ -123,10 +111,7 @@ class GeminiService:
             
             try:
                 # Send message with streaming
-                response = await chat.send_message_async(
-                    current_message,
-                    stream=True,
-                )
+                response = await chat.send_message_stream(current_message)
                 
                 full_text = ""
                 tool_calls = []
@@ -188,15 +173,10 @@ class GeminiService:
                                 "result": result,
                             }
                             
-                            # Build function response part for Gemini
-                            # Convert result to Struct for protobuf compatibility
-                            response_struct = Struct()
-                            response_struct.update({"result": result} if not isinstance(result, dict) else result)
-                            
                             tool_response_parts.append(
-                                Part.from_function_response(
+                                types.Part.from_function_response(
                                     name=tc["name"],
-                                    response=response_struct,
+                                    response=result,
                                 )
                             )
                             
@@ -211,19 +191,16 @@ class GeminiService:
                             }
                             
                             # Still send error result to Gemini so it can respond appropriately
-                            response_struct = Struct()
-                            response_struct.update(error_result)
-                            
                             tool_response_parts.append(
-                                Part.from_function_response(
+                                types.Part.from_function_response(
                                     name=tc["name"],
-                                    response=response_struct,
+                                    response=error_result,
                                 )
                             )
                     
-                    # Set next message to tool results (Content with function role)
-                    current_message = Content(
-                        role="function",
+                    # Set next message to tool results (Content with tool role)
+                    current_message = types.Content(
+                        role="tool",
                         parts=tool_response_parts,
                     )
                 else:
@@ -262,11 +239,10 @@ class GeminiService:
         """
         logger.info(f"[GeminiService] generate_text called with max_tokens={max_tokens}")
         
-        model = genai.GenerativeModel(model_name=self.model_name)
-        
-        response = await model.generate_content_async(
-            prompt,
-            generation_config=GenerationConfig(max_output_tokens=max_tokens),
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(max_output_tokens=max_tokens),
         )
         
         result = response.text or ""
@@ -295,20 +271,17 @@ class GeminiService:
         """
         logger.info(f"[GeminiService] generate_structured called with schema: {response_schema.__name__}")
         
-        model = genai.GenerativeModel(model_name=self.model_name)
-        
-        response = model.generate_content(
-            prompt,
-            generation_config=GenerationConfig(
-                response_mime_type="application/json", 
-                # for our purposes, application/json will be fine
-                # but if issues arise or for different use cases, use form data
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
                 response_schema=response_schema,
             ),
         )
         
-        # Parse JSON response into Pydantic model
-        result = response_schema.model_validate_json(response.text)
+        # Use .parsed if available, otherwise fallback to validation
+        result = response.parsed or response_schema.model_validate_json(response.text)
         
         logger.info(f"[GeminiService] Structured output generated successfully")
         return result
@@ -335,26 +308,22 @@ class GeminiService:
         """
         logger.info(f"[GeminiService] generate_structured_async called with schema: {response_schema.__name__}")
         
-        model = genai.GenerativeModel(
-            model_name=self.model_name,
-            system_instruction=system_prompt,
-        )
-        
-        response = await model.generate_content_async(
-            prompt,
-            generation_config=GenerationConfig(
+        response = await self.client.aio.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
                 response_mime_type="application/json",
                 response_schema=response_schema,
             ),
         )
-        
-        # Parse JSON response into Pydantic model
-        result = response_schema.model_validate_json(response.text)
+        # New SDK may provide .parsed for Pydantic models
+        result = response.parsed or response_schema.model_validate_json(response.text)
         
         logger.info(f"[GeminiService] Structured async output generated successfully")
         return result
     
-    def _convert_messages(self, messages: list[dict]) -> list[Content]:
+    def _convert_messages(self, messages: list[dict]) -> list[types.Content]:
         """
         Convert OpenAI-style message dicts to Gemini Content objects.
         
@@ -383,15 +352,15 @@ class GeminiService:
             gemini_role = "model" if role == "assistant" else "user"
             
             history.append(
-                Content(
+                types.Content(
                     role=gemini_role,
-                    parts=[Part.from_text(content)],
+                    parts=[types.Part.from_text(text=content)],
                 )
             )
         
         return history
     
-    def _build_tools(self, tools_dict: dict[str, Any]) -> list[Tool]:
+    def _build_tools(self, tools_dict: dict[str, Any]) -> list[types.Tool]:
         """
         Convert tool definitions dictionary to Gemini Tool format.
         
@@ -422,17 +391,17 @@ class GeminiService:
             parameters = schema.get("parameters", {"type": "object", "properties": {}})
             
             # Create FunctionDeclaration
-            func_decl = FunctionDeclaration(
+            func_decl = types.FunctionDeclaration(
                 name=name,
                 description=description,
-                parameters=parameters,
+                parameters_json_schema=parameters,
             )
             function_declarations.append(func_decl)
         
         logger.info(f"[GeminiService] Built {len(function_declarations)} function declarations")
         
         # Wrap in Tool object (Gemini expects list of Tools)
-        return [Tool(function_declarations=function_declarations)]
+        return [types.Tool(function_declarations=function_declarations)]
 
 
 # Singleton instance for import throughout the application
