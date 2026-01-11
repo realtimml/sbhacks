@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { BiLogoGmail } from 'react-icons/bi';
+import { RiAddLargeLine, RiNotionLine, RiSlackLine } from 'react-icons/ri';
 
 interface Connection {
   id: string;
@@ -78,20 +80,9 @@ export default function ConnectionsModal({
                 
                 {/* Connection status */}
                 {connection.connected ? (
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <div className="w-3 h-3 rounded-full bg-[#8EB879]" />
                 ) : (
-                  <svg 
-                    className="w-5 h-5 text-[#3A3A38]" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
+                  <RiAddLargeLine className="text-[#393939] w-6 h-6" />
                 )}
               </button>
             ))}
@@ -104,29 +95,13 @@ export default function ConnectionsModal({
 
 // Service icons
 export const SlackIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="9" cy="9" r="1.5" />
-    <circle cx="15" cy="9" r="1.5" />
-    <circle cx="9" cy="15" r="1.5" />
-    <circle cx="15" cy="15" r="1.5" />
-    <rect x="11.5" y="6" width="1" height="6" rx="0.5" />
-    <rect x="11.5" y="12" width="1" height="6" rx="0.5" />
-    <rect x="6" y="11.5" width="6" height="1" rx="0.5" />
-    <rect x="12" y="11.5" width="6" height="1" rx="0.5" />
-  </svg>
+  <RiSlackLine className="text-[#393939] w-6 h-6" />
 );
 
 export const GmailIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <text x="5" y="17" fontSize="14" fontWeight="bold" fill="currentColor" stroke="none">G</text>
-  </svg>
+  <BiLogoGmail className="text-[#393939] w-6 h-6" />
 );
 
 export const NotionIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 7L4 17L8 20L8 10L4 7Z" />
-    <path d="M4 7L12 3L16 6L8 10L4 7Z" />
-    <path d="M8 10L16 6L16 16L8 20L8 10Z" />
-    <text x="10" y="15" fontSize="5" fill="currentColor" stroke="none" fontWeight="bold">N</text>
-  </svg>
+  <RiNotionLine className="text-[#393939] w-6 h-6" />
 );

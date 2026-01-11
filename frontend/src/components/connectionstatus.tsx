@@ -23,7 +23,7 @@ export default function ConnectionStatus({
       {/* Status indicator dot */}
       <div 
         className={`w-3 h-3 rounded-full shrink-0 ${
-          isFullyConnected ? 'bg-green-500' : 'bg-red-500'
+          isFullyConnected ? 'bg-[#8EB879]' : 'bg-[#e57758]'
         }`}
       />
     </button>
