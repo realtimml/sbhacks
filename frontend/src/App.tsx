@@ -35,7 +35,7 @@ function Layout() {
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="w-60 min-w-60 bg-sidebar flex flex-col p-4">
+      <aside className="w-60 min-w-60 bg-sidebar flex flex-col p-4 pl-6">
         <Logo />
         <div className="w-full h-px bg-[#C5BDAD] my-3" />
         <div className="flex flex-col gap-1">
@@ -60,7 +60,7 @@ function Layout() {
         connections={connections}
         onConnect={handleConnect}
       />
-      <main className="flex-1 bg-main-bg flex flex-col px-10 py-8">
+      <main className="flex-1 bg-main-bg flex flex-col pl-3 pr-6 py-8">
         <div className="flex-1 bg-[#F5EFE6] rounded-2xl flex flex-col overflow-hidden">
           <Outlet />
         </div>
