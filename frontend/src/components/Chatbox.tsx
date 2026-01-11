@@ -23,7 +23,7 @@ function Chatbox({ onSend }: ChatboxProps) {
 
   return (
     <div className="w-full px-6 pb-6">
-      <div className="flex items-center border-3 border-[#3A3A38] rounded-full px-4 py-3">
+      <div className="flex items-center border-3 border-[#3A3A38] rounded-2xl px-4 py-3">
         <input
           type="text"
           value={message}
