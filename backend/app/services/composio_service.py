@@ -33,8 +33,16 @@ class ComposioService:
 
     def get_connections(self, user_id: str) -> list[str]:
         """Get list of connected app names for a user"""
-        accounts = self.client.connected_accounts.list(user_id=user_id)
-        return [acc.app_name for acc in accounts if acc.status == "ACTIVE"]
+        response = self.client.connected_accounts.list(user_ids=[user_id])
+        items = response.items if hasattr(response, 'items') else []
+        result = []
+        for item in items:
+            status = getattr(item, 'status', None)
+            toolkit = getattr(item, 'toolkit', None)
+            toolkit_name = getattr(toolkit, 'name', None) or getattr(toolkit, 'slug', None) if toolkit else None
+            if status == "ACTIVE" and toolkit_name:
+                result.append(toolkit_name)
+        return result
 
 
 composio_service = ComposioService()

@@ -1,6 +1,29 @@
 // Empty string = relative URLs go through Vite proxy
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+// localStorage key for user ID persistence
+const USER_ID_KEY = 'orbital_user_id';
+
+/**
+ * Get or create a persistent user ID stored in localStorage
+ * This ensures connections persist across page reloads
+ */
+function getOrCreateUserId(): string {
+  let userId = localStorage.getItem(USER_ID_KEY);
+  if (!userId) {
+    userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    localStorage.setItem(USER_ID_KEY, userId);
+  }
+  return userId;
+}
+
+/**
+ * Get the current user ID (creates one if doesn't exist)
+ */
+export function getUserId(): string {
+  return getOrCreateUserId();
+}
+
 /**
  * Initiate OAuth flow for a specific app (gmail, slack, notion)
  * Redirects the user to the OAuth provider via Composio
